@@ -7,6 +7,8 @@ import json
 import asyncio
 import logging
 from typing import Dict, Any, Optional, List
+from playwright.async_api import async_playwright, BrowserContext
+from playwright_stealth import Stealth
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("TikTokScraper")
@@ -23,3 +25,9 @@ def load_env_cookie() -> Optional[str]:
         except Exception:
             pass
     return os.getenv("TIKTOK_SESSION_ID")
+
+class TikTokScraper:
+    def __init__(self, session_id: Optional[str] = None, headless: bool = True):
+        self.session_id = session_id or load_env_cookie()
+        self.headless = headless
+        self.stealth = Stealth()
