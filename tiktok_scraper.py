@@ -105,3 +105,45 @@ class TikTokScraper:
 
             following_private = False
 
+            # Intercept follower/following list API calls
+            async def intercept_user_list(response):
+                nonlocal followers_list, following_list, following_private
+                if "api/user/list" in response.url:
+                    try:
+                        data = await response.json()
+                        st_code = data.get("statusCode", 0)
+                        if st_code == 10222:
+                            following_private = True
+                        items = data.get("userList", [])
+                        if not items:
+                            return
+                        parsed = []
+                        for item in items:
+                            u = item.get("user", {})
+                            st = item.get("stats", {})
+                            parsed.append({
+                                "username": u.get("uniqueId"),
+                                "nickname": u.get("nickname"),
+                                "avatar_url": u.get("avatarThumb") or u.get("avatarMedium"),
+                                "followers_count": st.get("followerCount", 0),
+                                "following_count": st.get("followingCount", 0),
+                                "verified": u.get("verified", False),
+                                "sec_uid": u.get("secUid", ""),
+                            })
+                        
+                        scene_match = re.search(r"[?&]scene=(\d+)", response.url)
+                        scene = scene_match.group(1) if scene_match else ""
+
+                        if scene == "67":
+                            for p_user in parsed:
+                                if not any(x["username"] == p_user["username"] for x in followers_list):
+                                    followers_list.append(p_user)
+                        elif scene == "21":
+                            for p_user in parsed:
+                                if not any(x["username"] == p_user["username"] for x in following_list):
+                                    following_list.append(p_user)
+                    except Exception:
+                        pass
+
+            page.on("response", intercept_user_list)
+
