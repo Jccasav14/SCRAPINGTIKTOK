@@ -1,0 +1,36 @@
+# Entornos y Secretos (NUNCA SUBIR COOKIES NI TOKENS)
+.env
+*.env
+.env.*
+!.env.example
+
+# Archivos temporales y scripts de pruebas
+scratch/
+test_*.py
+*.log
+*.png
+
+# Resultados de perfiles ya scrapeados (No subir perfiles a GitHub)
+tiktok_*.json
+!example_output.json
+
+# Cache de Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Entornos virtuales
+venv/
+.venv/
+env/
+ENV/
+
+# Configuración de IDEs y editores
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
