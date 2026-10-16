@@ -248,3 +248,21 @@ class TikTokScraper:
                 except Exception as e:
                     logger.warning(f"Aviso al extraer seguidores: {e}")
 
+                # 2. SEGUIDOS
+                try:
+                    following_btn = await page.query_selector('strong[data-e2e="following-count"]')
+                    if following_btn:
+                        await following_btn.click(timeout=5000, force=True)
+                        await asyncio.sleep(2.5)
+                        for _ in range(min(3, max(0, (max_list_items - 30) // 10))):
+                            await page.mouse.wheel(0, 800)
+                            await asyncio.sleep(0.7)
+                        await page.keyboard.press("Escape")
+                        await asyncio.sleep(0.5)
+                except Exception as e:
+                    logger.warning(f"Aviso al extraer seguidos: {e}")
+            else:
+                profile_data["note"] = (
+                    "TikTok requiere cookie 'sessionid' para listar usuarios individuales de seguidores/seguidos."
+                )
+
