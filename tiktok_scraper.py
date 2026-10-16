@@ -159,3 +159,24 @@ class TikTokScraper:
                     "username": clean_user
                 }
 
+            # Extract user data from rehydration script tag
+            script_el = await page.query_selector("script#__UNIVERSAL_DATA_FOR_REHYDRATION__")
+            if not script_el:
+                await browser.close()
+                return {
+                    "success": False,
+                    "error": f"No se pudo encontrar los datos del perfil de @{clean_user}. Podría no existir o estar bloqueado.",
+                    "username": clean_user
+                }
+
+            content = await script_el.inner_text()
+            try:
+                raw_data = json.loads(content)
+            except json.JSONDecodeError:
+                await browser.close()
+                return {
+                    "success": False,
+                    "error": "Error al parsear los datos internos de TikTok.",
+                    "username": clean_user
+                }
+
