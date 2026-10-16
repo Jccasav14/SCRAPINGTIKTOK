@@ -196,3 +196,18 @@ class TikTokScraper:
             stats = user_info.get("stats", {})
             stats_v2 = user_info.get("statsV2", {})
 
+            def _parse_stat(key: str, default: int = 0) -> int:
+                val = stats_v2.get(key)
+                if val is not None:
+                    try:
+                        return int(val)
+                    except (ValueError, TypeError):
+                        pass
+                num = stats.get(key, default)
+                if isinstance(num, int) and num < 0:
+                    return num + (1 << 32)
+                try:
+                    return int(num)
+                except (ValueError, TypeError):
+                    return default
+
