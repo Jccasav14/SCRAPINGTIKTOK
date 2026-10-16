@@ -77,3 +77,31 @@ class TikTokScraper:
 
         return browser, context
 
+    async def scrape(
+        self,
+        username: str,
+        max_list_items: int = 30,
+        max_videos: int = 10,
+        max_comments_per_video: int = 20,
+    ) -> Dict[str, Any]:
+        """
+        Scrapes a TikTok user profile given only their username/nick.
+        
+        :param username: TikTok handle (e.g. 'mrbeast' or '@mrbeast')
+        :param max_list_items: Maximum items to collect for followers/following lists
+        :param max_videos: Number of recent videos to extract (default: 10)
+        :param max_comments_per_video: Maximum comments to extract per video
+        :return: Dictionary containing complete profile data, lists, videos, and comments
+        """
+        clean_user = username.strip().lstrip("@")
+        profile_url = f"https://www.tiktok.com/@{clean_user}"
+        
+        followers_list: List[Dict[str, Any]] = []
+        following_list: List[Dict[str, Any]] = []
+        
+        async with self.stealth.use_async(async_playwright()) as p:
+            browser, context = await self._setup_context(p)
+            page = await context.new_page()
+
+            following_private = False
+
