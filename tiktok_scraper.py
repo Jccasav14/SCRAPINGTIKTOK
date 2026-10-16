@@ -266,3 +266,10 @@ class TikTokScraper:
                     "TikTok requiere cookie 'sessionid' para listar usuarios individuales de seguidores/seguidos."
                 )
 
+            profile_data["following_list"] = following_list[:max_list_items]
+            profile_data["followers_list"] = followers_list[:max_list_items]
+            profile_data["following_list_private"] = following_private
+
+            # Remove listener for user list
+            page.remove_listener("response", intercept_user_list)
+
