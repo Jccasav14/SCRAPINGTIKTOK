@@ -180,3 +180,19 @@ class TikTokScraper:
                     "username": clean_user
                 }
 
+            user_detail = raw_data.get("__DEFAULT_SCOPE__", {}).get("webapp.user-detail", {})
+            status_code = user_detail.get("statusCode", 0)
+            
+            if status_code != 0:
+                await browser.close()
+                return {
+                    "success": False,
+                    "error": f"Usuario @{clean_user} no encontrado o cuenta no disponible (Status: {status_code}).",
+                    "username": clean_user
+                }
+
+            user_info = user_detail.get("userInfo", {})
+            user = user_info.get("user", {})
+            stats = user_info.get("stats", {})
+            stats_v2 = user_info.get("statsV2", {})
+
