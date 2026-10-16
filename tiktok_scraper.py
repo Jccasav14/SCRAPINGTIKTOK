@@ -147,3 +147,15 @@ class TikTokScraper:
 
             page.on("response", intercept_user_list)
 
+            logger.info(f"Navegando al perfil: {profile_url}")
+            try:
+                await page.goto(profile_url, wait_until="domcontentloaded", timeout=35000)
+                await asyncio.sleep(3)
+            except Exception as e:
+                await browser.close()
+                return {
+                    "success": False,
+                    "error": f"Error cargando la página de TikTok: {str(e)}",
+                    "username": clean_user
+                }
+
