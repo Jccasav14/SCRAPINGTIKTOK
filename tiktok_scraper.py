@@ -273,3 +273,289 @@ class TikTokScraper:
             # Remove listener for user list
             page.remove_listener("response", intercept_user_list)
 
+            # =========================================================================
+            # EXTRAER ÚLTIMOS VIDEOS Y SUS COMENTARIOS (HASTA max_videos)
+            # =========================================================================
+            if max_videos > 0:
+                # Cerrar página de perfil una vez extraídos datos y listas
+                await page.close()
+
+                logger.info(f"Buscando los últimos {max_videos} videos de @{clean_user}...")
+                video_urls = await self._extract_video_urls(browser, clean_user, max_videos)
+                logger.info(f"Se encontraron {len(video_urls)} URLs de videos más recientes.")
+
+                videos_data = []
+                for idx, v_url in enumerate(video_urls, 1):
+                    logger.info(f"Extrayendo métricas y comentarios [{idx}/{len(video_urls)}]: {v_url}")
+                    # Usar un contexto aislado por video para evitar bloqueos de velocidad de TikTok
+                    v_ctx = await browser.new_context(viewport={"width": 1280, "height": 800}, locale="es-ES")
+                    if self.session_id:
+                        await v_ctx.add_cookies([{"name": "sessionid", "value": self.session_id, "domain": ".tiktok.com", "path": "/"}])
+                    
+                    v_info = await self._extract_single_video_details(
+                        context=v_ctx,
+                        video_url=v_url,
+                        max_comments=max_comments_per_video
+                    )
+                    await v_ctx.close()
+                    videos_data.append(v_info)
+
+                profile_data["videos"] = videos_data
+
+            await browser.close()
+            return profile_data
+
+    async def _extract_video_urls(self, browser: Any, username: str, max_videos: int) -> List[str]:
+        """
+        Extrae la lista de URLs de los videos más recientes del usuario.
+        Utiliza la búsqueda de TikTok filtrada por el autor exacto y scroll progresivo en un contexto limpio.
+        Los videos se ordenan descendentemente por su ID (Snowflake: ID mayor = más reciente).
+        """
+        raw_urls: List[str] = []
+        clean_user = username.strip().lstrip("@").lower()
+        search_url = f"https://www.tiktok.com/search?q=%40{clean_user}"
+        
+        search_ctx = await browser.new_context(viewport={"width": 1280, "height": 800}, locale="es-ES")
+        if self.session_id:
+            await search_ctx.add_cookies([{"name": "sessionid", "value": self.session_id, "domain": ".tiktok.com", "path": "/"}])
+        page = await search_ctx.new_page()
+
+        try:
+            await page.goto(search_url, wait_until="domcontentloaded", timeout=25000)
+            await asyncio.sleep(2.5)
+
+            # Scroll progresivo para cargar los videos más recientes
+            scroll_count = max(4, (max_videos + 2) // 3)
+            for _ in range(scroll_count):
+                await page.mouse.wheel(0, 1500)
+                await asyncio.sleep(1.5)
+
+            links = await page.evaluate(
+                "() => Array.from(document.querySelectorAll('a')).map(a => a.href)"
+            )
+            for l in links:
+                base = l.split("?")[0]
+                if f"/@{clean_user}/video/" in base.lower() and base not in raw_urls:
+                    raw_urls.append(base)
+        except Exception as e:
+            logger.warning(f"Aviso en búsqueda de videos: {e}")
+        finally:
+            try:
+                await search_ctx.close()
+            except Exception:
+                pass
+
+        # Ordenar los videos descendentemente por ID numérico (Snowflake)
+        def _get_vid_id(u: str) -> int:
+            m = re.search(r"/video/(\d+)", u)
+            return int(m.group(1)) if m else 0
+
+        sorted_urls = sorted(list(dict.fromkeys(raw_urls)), key=_get_vid_id, reverse=True)
+        return sorted_urls[:max_videos]
+
+    async def _extract_single_video_details(
+        self,
+        context: BrowserContext,
+        video_url: str,
+        max_comments: int = 20
+    ) -> Dict[str, Any]:
+        """Navega a un video específico en una pestaña limpia, extrae todas las métricas de interacción y los comentarios."""
+        page = await context.new_page()
+        captured_comments: List[Dict[str, Any]] = []
+
+        # Interceptor de la API de comentarios de TikTok
+        async def intercept_comments(response):
+            nonlocal captured_comments
+            if "comment/list" in response.url:
+                try:
+                    text = await response.text()
+                    if not text:
+                        return
+                    d = json.loads(text)
+                    raw_comments = d.get("comments", []) or []
+                    logger.info(f"API de comentarios interceptada: {len(raw_comments)} comentarios obtenidos.")
+                    for c in raw_comments:
+                        u = c.get("user", {}) or {}
+                        c_id = str(c.get("cid", ""))
+                        if not any(x["comment_id"] == c_id for x in captured_comments):
+                            created_ts = c.get("create_time", 0)
+                            dt_str = ""
+                            if created_ts:
+                                try:
+                                    dt_str = datetime.fromtimestamp(created_ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+                                except Exception:
+                                    pass
+
+                            captured_comments.append({
+                                "comment_id": c_id,
+                                "username": u.get("unique_id", "") or u.get("uniqueId", ""),
+                                "nickname": u.get("nickname", ""),
+                                "avatar_url": u.get("avatar_thumb", {}).get("url_list", [""])[0] if isinstance(u.get("avatar_thumb"), dict) else "",
+                                "text": c.get("text", ""),
+                                "likes_count": c.get("digg_count", 0),
+                                "replies_count": c.get("reply_comment_total", 0),
+                                "create_time": created_ts,
+                                "date": dt_str
+                            })
+                except Exception as e:
+                    logger.warning(f"Error parseando comentarios: {e}")
+
+        page.on("response", intercept_comments)
+
+        video_info: Dict[str, Any] = {
+            "video_id": "",
+            "video_url": video_url,
+            "description": "",
+            "create_time": 0,
+            "date": "",
+            "likes_count": 0,
+            "comments_count": 0,
+            "views_count": 0,
+            "shares_count": 0,
+            "bookmarks_count": 0,
+            "music_title": "",
+            "music_author": "",
+            "comments": []
+        }
+
+        try:
+            await page.goto(video_url, wait_until="domcontentloaded", timeout=25000)
+            await asyncio.sleep(2.5)
+        except Exception as e:
+            logger.warning(f"Error navegando a video {video_url}: {e}")
+            await page.close()
+            return {
+                "video_url": video_url,
+                "error": str(e),
+                "comments": []
+            }
+
+        # Extraer metadatos de rehidratación
+        try:
+            el = await page.wait_for_selector("script#__UNIVERSAL_DATA_FOR_REHYDRATION__", state="attached", timeout=12000)
+            if el:
+                txt = await el.text_content()
+                d = json.loads(txt)
+                detail = d.get("__DEFAULT_SCOPE__", {}).get("webapp.video-detail", {})
+                item = detail.get("itemInfo", {}).get("itemStruct", {})
+                stats = item.get("stats", {})
+
+                def _to_int(val):
+                    try:
+                        return int(val)
+                    except (ValueError, TypeError):
+                        return 0
+
+                c_time = _to_int(item.get("createTime", 0))
+                dt_str = ""
+                if c_time:
+                    try:
+                        dt_str = datetime.fromtimestamp(c_time, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+                    except Exception:
+                        pass
+
+                video_info["video_id"] = str(item.get("id", ""))
+                video_info["description"] = item.get("desc", "")
+                video_info["create_time"] = c_time
+                video_info["date"] = dt_str
+                video_info["likes_count"] = _to_int(stats.get("diggCount"))
+                video_info["comments_count"] = _to_int(stats.get("commentCount"))
+                video_info["views_count"] = _to_int(stats.get("playCount"))
+                video_info["shares_count"] = _to_int(stats.get("shareCount"))
+                video_info["bookmarks_count"] = _to_int(stats.get("collectCount"))
+                video_info["music_title"] = item.get("music", {}).get("title", "")
+                video_info["music_author"] = item.get("music", {}).get("authorName", "")
+        except Exception as e:
+            logger.warning(f"Error parseando universal data del video: {e}")
+
+        if not video_info["video_id"]:
+            m = re.search(r"/video/(\d+)", video_url)
+            if m:
+                video_info["video_id"] = m.group(1)
+
+        # Esperar botón de comentarios y hacer clic nativo para activar la carga de api/comment/list
+        try:
+            btn = await page.wait_for_selector(
+                '[data-e2e="comment-icon"], [data-e2e="comment-count"], button[class*="tux"]:has-text("Comentarios"), button[class*="tux"]:has-text("Comments")',
+                timeout=8000
+            )
+            if btn:
+                logger.info("Botón de comentarios encontrado. Haciendo clic nativo...")
+                await btn.click()
+                for _ in range(12):
+                    if len(captured_comments) >= max_comments:
+                        break
+                    await asyncio.sleep(0.5)
+
+            # Si aún no se capturaron comentarios, intentar clic en la pestaña de Comentarios
+            if not captured_comments:
+                tab_btn = await page.query_selector('button[class*="tux"]:has-text("Comentarios"), button[class*="tux"]:has-text("Comments")')
+                if tab_btn:
+                    await tab_btn.click()
+                    for _ in range(8):
+                        if len(captured_comments) >= max_comments:
+                            break
+                        await asyncio.sleep(0.5)
+        except Exception as e:
+            logger.warning(f"Aviso al hacer clic en comentarios: {e}")
+
+        # Fallback por si la API no atrapó suficientes comentarios: extraer de DOM
+        if len(captured_comments) < max_comments:
+            try:
+                dom_comments = await page.evaluate("""() => {
+                    const list = [];
+                    const items = document.querySelectorAll('[data-e2e="comment-item"], div[class*="DivCommentItemContainer"], div[class*="CommentItem"]');
+                    for (let el of items) {
+                        const userEl = el.querySelector('[data-e2e="comment-username"], a[href*="/@"], span[class*="SpanUserName"]');
+                        const textEl = el.querySelector('[data-e2e="comment-level-1"], p[class*="PCommentText"], span[class*="SpanCommentText"]');
+                        const likeEl = el.querySelector('[data-e2e="comment-like-count"], span[class*="SpanCount"]');
+                        if (textEl && textEl.innerText.trim()) {
+                            list.push({
+                                username: userEl ? userEl.innerText.trim().replace(/^@/, '') : "",
+                                text: textEl.innerText.trim(),
+                                likes_text: likeEl ? likeEl.innerText.trim() : "0"
+                            });
+                        }
+                    }
+                    return list;
+                }""")
+                for dc in dom_comments:
+                    if not any(x["text"] == dc["text"] for x in captured_comments):
+                        captured_comments.append({
+                            "comment_id": "",
+                            "username": dc.get("username", ""),
+                            "nickname": dc.get("username", ""),
+                            "avatar_url": "",
+                            "text": dc.get("text", ""),
+                            "likes_count": 0,
+                            "replies_count": 0,
+                            "create_time": 0,
+                            "date": ""
+                        })
+            except Exception:
+                pass
+
+        page.remove_listener("response", intercept_comments)
+        await page.close()
+        video_info["comments"] = captured_comments[:max_comments]
+        return video_info
+
+
+def scrape_tiktok_user(
+    username: str,
+    session_id: Optional[str] = None,
+    max_videos: int = 10,
+    max_comments: int = 20
+) -> Dict[str, Any]:
+    """Helper sincrónico para ejecutar el scraper de TikTok con videos y comentarios."""
+    scraper = TikTokScraper(session_id=session_id)
+    return asyncio.run(scraper.scrape(username, max_videos=max_videos, max_comments_per_video=max_comments))
+
+
+if __name__ == "__main__":
+    import sys
+    sys.stdout.reconfigure(encoding="utf-8")
+    user_to_test = sys.argv[1] if len(sys.argv) > 1 else "tiktok"
+    print(f"Probando scraper completo para: @{user_to_test}...")
+    res = scrape_tiktok_user(user_to_test, max_videos=3, max_comments=5)
+    print(json.dumps(res, indent=2, ensure_ascii=False))
