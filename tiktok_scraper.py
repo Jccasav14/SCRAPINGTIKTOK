@@ -211,3 +211,24 @@ class TikTokScraper:
                 except (ValueError, TypeError):
                     return default
 
+            profile_data = {
+                "success": True,
+                "username": user.get("uniqueId", clean_user),
+                "nickname": user.get("nickname", ""),
+                "avatar_url": user.get("avatarLarger") or user.get("avatarMedium") or user.get("avatarThumb", ""),
+                "followers_count": _parse_stat("followerCount"),
+                "following_count": _parse_stat("followingCount"),
+                "heart_count": _parse_stat("heartCount") or _parse_stat("heart"),
+                "video_count": _parse_stat("videoCount"),
+                "bio": user.get("signature", ""),
+                "verified": user.get("verified", False),
+                "private_account": user.get("privateAccount", False),
+                "sec_uid": user.get("secUid", ""),
+                "user_id": user.get("id", ""),
+                "requires_login_for_lists": not bool(self.session_id),
+                "following_list": [],
+                "followers_list": [],
+                "videos": [],
+                "note": ""
+            }
+
