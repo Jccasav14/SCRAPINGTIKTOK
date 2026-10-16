@@ -232,3 +232,19 @@ class TikTokScraper:
                 "note": ""
             }
 
+            # Extract followers & following lists if session cookie is present
+            if self.session_id:
+                # 1. SEGUIDORES
+                try:
+                    followers_btn = await page.query_selector('strong[data-e2e="followers-count"]')
+                    if followers_btn:
+                        await followers_btn.click(timeout=5000, force=True)
+                        await asyncio.sleep(2.5)
+                        for _ in range(min(3, max(0, (max_list_items - 30) // 10))):
+                            await page.mouse.wheel(0, 800)
+                            await asyncio.sleep(0.7)
+                        await page.keyboard.press("Escape")
+                        await asyncio.sleep(1)
+                except Exception as e:
+                    logger.warning(f"Aviso al extraer seguidores: {e}")
+
