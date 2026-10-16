@@ -31,3 +31,26 @@ class TikTokScraper:
         self.session_id = session_id or load_env_cookie()
         self.headless = headless
         self.stealth = Stealth()
+
+    async def _setup_context(self, p) -> tuple[Any, BrowserContext]:
+        launch_args = {
+            "headless": self.headless,
+            "args": [
+                "--headless=new",
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-infobars",
+                "--window-size=1280,800",
+            ],
+        }
+        try:
+            browser = await p.chromium.launch(channel="chrome", **launch_args)
+        except Exception:
+            browser = await p.chromium.launch(**launch_args)
+
+        context = await browser.new_context(
+            viewport={"width": 1280, "height": 800},
+            locale="es-ES",
+        )
+        return browser, context
