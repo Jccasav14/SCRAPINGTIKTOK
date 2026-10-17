@@ -1,0 +1,54 @@
+{
+  "success": true,
+  "username": "ejemplo",
+  "nickname": "Ejemplo Usuario",
+  "avatar_url": "https://p16-common-sign.tiktokcdn.com/tos-maliva-avt-0068/example.jpeg",
+  "followers_count": 1500000,
+  "following_count": 45,
+  "heart_count": 25000000,
+  "video_count": 120,
+  "bio": "Cuenta de ejemplo | TikTok Scraper",
+  "verified": true,
+  "private_account": false,
+  "sec_uid": "MS4wLjABAAAA...",
+  "user_id": "1234567890",
+  "following_list": [
+    {
+      "username": "creador1",
+      "nickname": "Creador 1",
+      "followers_count": 500000,
+      "verified": true
+    }
+  ],
+  "followers_list": [
+    {
+      "username": "fan1",
+      "nickname": "Fan 1",
+      "followers_count": 1200,
+      "verified": false
+    }
+  ],
+  "videos": [
+    {
+      "video_id": "7697307919943060767",
+      "url": "https://www.tiktok.com/@ejemplo/video/7697307919943060767",
+      "description": "Video demostrativo #fyp #viral",
+      "upload_time": "2026-10-16 16:46:21 UTC",
+      "likes": 254700,
+      "comments_count": 5906,
+      "views": 2800000,
+      "shares": 30300,
+      "bookmarks": 13728,
+      "comments": [
+        {
+          "comment_id": "76973089912",
+          "username": "usuario_fan",
+          "nickname": "Usuario Fan",
+          "text": "Excelente contenido!",
+          "likes": 420,
+          "created_time": "2026-10-16 17:00:00"
+        }
+      ]
+    }
+  ]
+}
