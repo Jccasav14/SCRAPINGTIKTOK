@@ -15,6 +15,9 @@ app = FastAPI(
     title="TikTok Scraper API",
     description="API REST para obtener datos de perfiles de TikTok, videos e interacciones, y comentarios.",
     version="2.0.0",
+    openapi_tags=[
+        {"name": "Scraper", "description": "Endpoints principales para extracción de perfiles y videos"},
+    ]
 )
 
 # Habilitar CORS para permitir peticiones desde aplicaciones móviles o web
