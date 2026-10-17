@@ -131,6 +131,7 @@ class TikTokScraper:
                                 "sec_uid": u.get("secUid", ""),
                             })
                         
+                        # scene=67 corresponde a seguidores, scene=21 a seguidos en TikTok Web
                         scene_match = re.search(r"[?&]scene=(\d+)", response.url)
                         scene = scene_match.group(1) if scene_match else ""
 
