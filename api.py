@@ -44,3 +44,30 @@ def read_root():
     }
 
 
+@app.get("/api/tiktok/{username}")
+async def get_tiktok_profile(
+    username: str,
+    session_id: Optional[str] = Query(None, description="Cookie 'sessionid' opcional de TikTok"),
+    max_items: int = Query(30, description="Límite de usuarios en listas de seguidores/seguidos"),
+    max_videos: int = Query(10, description="Cantidad de videos recientes a extraer"),
+    max_comments: int = Query(15, description="Cantidad de comentarios a extraer por video"),
+):
+    """
+    Endpoint GET para scrapear perfil de TikTok ingresando solo el nick o username.
+    """
+    scraper = TikTokScraper(session_id=session_id, headless=True)
+    data = await scraper.scrape(
+        username=username,
+        max_list_items=max_items,
+        max_videos=max_videos,
+        max_comments_per_video=max_comments
+    )
+    
+    if not data.get("success"):
+        raise HTTPException(
+            status_code=404 if "no encontrado" in data.get("error", "") else 500,
+            detail=data.get("error", "Error al procesar la solicitud.")
+        )
+    return data
+
+
