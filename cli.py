@@ -186,6 +186,7 @@ def main():
 
     clean_user = target_user.lstrip("@").strip()
     print(f"⏳ Iniciando scraping para: @{clean_user}")
+    print("   (Conectando con Playwright Stealth y resolviendo encabezados...")
     print(f"   (Buscando perfil, seguidores/seguidos, últimos {args.max_videos} videos y comentarios por video...)")
     
     scraper = TikTokScraper(session_id=args.session_id, headless=True)
