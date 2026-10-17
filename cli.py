@@ -80,3 +80,124 @@ def display_results(data: dict):
         print("   Para desbloquear la lista de nombres, puedes pasar tu cookie con:")
         print("   python cli.py <usuario> --session-id TU_COOKIE_SESSIONID")
 
+    # 2. Videos y Métricas de interacción
+    videos = data.get("videos", [])
+    if videos:
+        print("\n" + "=" * 65)
+        print(f" 🎬 ÚLTIMOS {len(videos)} VIDEOS E INTERACCIONES")
+        print("=" * 65)
+        for idx, v in enumerate(videos, start=1):
+            desc = v.get("description", "").replace("\n", " ")
+            if len(desc) > 75:
+                desc = desc[:72] + "..."
+            print(f"\n[{idx:02d}] Video ID: {v.get('video_id')}")
+            print(f"     URL:         {v.get('video_url')}")
+            if desc:
+                print(f"     Descripción: \"{desc}\"")
+            if v.get("date"):
+                print(f"     Fecha:       {v.get('date')}")
+            print(f"     ❤️ Likes:       {v.get('likes_count', 0):,}")
+            print(f"     💬 Comentarios: {v.get('comments_count', 0):,}")
+            print(f"     👁️ Vistas:      {v.get('views_count', 0):,}")
+            print(f"     🔄 Shares:      {v.get('shares_count', 0):,}")
+            print(f"     ⭐ Guardados:   {v.get('bookmarks_count', 0):,}")
+
+            # Comentarios del video
+            comments = v.get("comments", [])
+            if comments:
+                print(f"     💬 Comentarios extraídos ({len(comments)}):")
+                for c_idx, c in enumerate(comments[:5], start=1):
+                    c_user = c.get('username') or c.get('nickname') or 'anónimo'
+                    c_text = c.get('text', '').replace('\n', ' ')
+                    if len(c_text) > 80:
+                        c_text = c_text[:77] + '...'
+                    c_likes = f"❤️ {c.get('likes_count', 0):,}" if c.get('likes_count') else ""
+                    print(f"        {c_idx}. @{c_user}: \"{c_text}\" {c_likes}".strip())
+                if len(comments) > 5:
+                    print(f"        ... y {len(comments) - 5} comentarios más guardados en el archivo JSON.")
+            else:
+                print("     💬 Comentarios: No hay comentarios públicos o no se pudieron extraer.")
+            print("-" * 65)
+    else:
+        print("\nℹ️ No se encontraron videos públicos para este usuario.")
+
+    # Guardar en archivo JSON completo
+    username = data.get("username", "resultado")
+    out_file = f"tiktok_{username}.json"
+    with open(out_file, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+    print("\n" + "=" * 65)
+    print(f"💾 Resultados completos exportados a: {out_file}")
+    print("=" * 65 + "\n")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Scraper de perfiles de TikTok: perfil, seguidores, seguidos, últimos 10 videos y comentarios."
+    )
+    parser.add_argument(
+        "username",
+        nargs="?",
+        help="Nick o nombre de usuario de TikTok (ejemplo: 'mrbeast', 'khaby.lame', 'tiktok')",
+    )
+    parser.add_argument(
+        "--session-id",
+        dest="session_id",
+        default=None,
+        help="(Opcional) Cookie 'sessionid' de TikTok para desbloquear listas de seguidores/seguidos.",
+    )
+    parser.add_argument(
+        "--max-items",
+        dest="max_items",
+        type=int,
+        default=30,
+        help="Máximo de seguidores/seguidos a extraer (por defecto: 30).",
+    )
+    parser.add_argument(
+        "--max-videos",
+        dest="max_videos",
+        type=int,
+        default=10,
+        help="Cantidad de videos recientes a extraer (por defecto: 10).",
+    )
+    parser.add_argument(
+        "--max-comments",
+        dest="max_comments",
+        type=int,
+        default=15,
+        help="Cantidad de comentarios a extraer por cada video (por defecto: 15).",
+    )
+
+    args = parser.parse_args()
+
+    print_banner()
+
+    target_user = args.username
+    if not target_user:
+        try:
+            target_user = input("👉 Ingrese el nick o nombre de usuario de TikTok: ").strip()
+        except (KeyboardInterrupt, EOFError):
+            print("\nOperación cancelada.")
+            return
+
+    if not target_user:
+        print("❌ Debe proporcionar un nick o usuario válido.")
+        return
+
+    clean_user = target_user.lstrip("@").strip()
+    print(f"⏳ Iniciando scraping para: @{clean_user}")
+    print(f"   (Buscando perfil, seguidores/seguidos, últimos {args.max_videos} videos y comentarios por video...)")
+    
+    scraper = TikTokScraper(session_id=args.session_id, headless=True)
+    import asyncio
+    data = asyncio.run(scraper.scrape(
+        username=clean_user,
+        max_list_items=args.max_items,
+        max_videos=args.max_videos,
+        max_comments_per_video=args.max_comments
+    ))
+    display_results(data)
+
+
+if __name__ == "__main__":
+    main()
