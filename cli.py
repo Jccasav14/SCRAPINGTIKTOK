@@ -53,3 +53,30 @@ def display_results(data: dict):
     print(f" • Foto de Perfil HD:  {avatar[:80]}..." if len(avatar) > 80 else f" • Foto de Perfil HD:  {avatar}")
     print("-" * 65)
 
+    # 1. Listados de seguidores y seguidos
+    following_list = data.get("following_list", [])
+    followers_list = data.get("followers_list", [])
+    
+    if following_list or followers_list or data.get("following_list_private"):
+        if following_list:
+            print(f"\n📋 LISTADO DE SEGUIDOS ({len(following_list)} cuentas extraídas):")
+            print("-" * 65)
+            for i, u in enumerate(following_list, start=1):
+                verified_mark = " ✓" if u.get("verified") else ""
+                print(f" [{i:02d}] @{u.get('username')}{verified_mark} - {u.get('nickname')} ({u.get('followers_count', 0):,} seguidores)")
+        elif data.get("following_list_private"):
+            print(f"\n🔒 LISTADO DE SEGUIDOS:")
+            print("   ℹ️ La lista de seguidos está configurada como PRIVADA ('Solo yo') por este usuario en TikTok.")
+        
+        if followers_list:
+            print(f"\n📋 LISTADO DE SEGUIDORES ({len(followers_list)} cuentas extraídas):")
+            print("-" * 65)
+            for i, u in enumerate(followers_list, start=1):
+                verified_mark = " ✓" if u.get("verified") else ""
+                print(f" [{i:02d}] @{u.get('username')}{verified_mark} - {u.get('nickname')} ({u.get('followers_count', 0):,} seguidores)")
+    else:
+        print("\n🔒 Listados individuales de seguidores/seguidos:")
+        print("   TikTok bloquea la lista de usuarios anónimos con un 'Login Wall'.")
+        print("   Para desbloquear la lista de nombres, puedes pasar tu cookie con:")
+        print("   python cli.py <usuario> --session-id TU_COOKIE_SESSIONID")
+
