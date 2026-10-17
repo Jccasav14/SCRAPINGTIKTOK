@@ -71,3 +71,27 @@ async def get_tiktok_profile(
     return data
 
 
+@app.post("/api/tiktok/scrape")
+async def post_tiktok_scrape(payload: ScrapeRequest):
+    """
+    Endpoint POST para recibir parámetros en formato JSON desde una aplicación móvil.
+    """
+    scraper = TikTokScraper(session_id=payload.session_id, headless=True)
+    data = await scraper.scrape(
+        username=payload.username,
+        max_list_items=payload.max_list_items or 30,
+        max_videos=payload.max_videos or 10,
+        max_comments_per_video=payload.max_comments_per_video or 15
+    )
+    
+    if not data.get("success"):
+        raise HTTPException(
+            status_code=404 if "no encontrado" in data.get("error", "") else 500,
+            detail=data.get("error", "Error al procesar la solicitud.")
+        )
+    return data
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
