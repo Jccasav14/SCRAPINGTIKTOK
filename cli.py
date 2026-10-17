@@ -11,5 +11,7 @@ BANNER = """
 ==================================================================
 """
 
-def main():
-    print(BANNER)
+def parse_args():
+    parser = argparse.ArgumentParser(description="TikTok Scraper CLI")
+    parser.add_argument("username", help="Usuario de TikTok")
+    return parser.parse_args()
