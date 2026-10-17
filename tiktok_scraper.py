@@ -77,6 +77,7 @@ class TikTokScraper:
 
         return browser, context
 
+    # Extrae perfil, listas, videos y comentarios en un diccionario tipado
     async def scrape(
         self,
         username: str,
