@@ -38,6 +38,10 @@ class ScrapeRequest(BaseModel):
     max_comments_per_video: Optional[int] = 15
 
 
+@app.get("/health", tags=["Health"])
+def health():
+    return {"status": "ok", "service": "tiktok-scraper"}
+
 @app.get("/")
 def read_root():
     return {
