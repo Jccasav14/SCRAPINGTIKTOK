@@ -9,3 +9,10 @@
 
 ### ¿Por qué la lista de seguidos aparece como privada?
 TikTok permite a cada usuario configurar su lista de seguidos como privada ('Solo yo'). En esos casos la API devuelve código `10222` y el scraper lo notifica explícitamente.
+
+### Despliegue en la Nube (Railway / Render / VPS)
+Puedes desplegar `api.py` fácilmente ejecutando:
+```bash
+playwright install --with-deps chromium
+uvicorn api:app --host 0.0.0.0 --port 8000
+```
