@@ -16,3 +16,6 @@ Puedes desplegar `api.py` fácilmente ejecutando:
 playwright install --with-deps chromium
 uvicorn api:app --host 0.0.0.0 --port 8000
 ```
+
+---
+*Desarrollado para la materia de Programación para Dispositivos Móviles - Décimo Semestre.* 🚀
