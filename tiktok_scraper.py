@@ -51,7 +51,7 @@ class TikTokScraper:
         self.stealth = Stealth()
 
     async def _setup_context(self, p) -> tuple[Any, BrowserContext]:
-        # Use real Chrome if installed for best stealth, fallback to chromium
+        """Inicia Google Chrome con flags especiales que desactivan la detección automatizada."""
         launch_args = {
             "headless": self.headless,
             "args": [
