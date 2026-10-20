@@ -371,7 +371,6 @@ class TikTokScraper:
 
         async def intercept_comments(response):
             nonlocal captured_comments
-            nonlocal captured_comments
             if "comment/list" in response.url:
                 try:
                     text = await response.text()
