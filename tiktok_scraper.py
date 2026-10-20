@@ -362,12 +362,15 @@ class TikTokScraper:
         video_url: str,
         max_comments: int = 20
     ) -> Dict[str, Any]:
-        """Navega a un video específico en una pestaña limpia, extrae todas las métricas de interacción y los comentarios."""
+        """
+        Navega a un video específico, extrae sus métricas de interacción
+        y captura los comentarios reales mediante intercepción de red y fallback de DOM.
+        """
         page = await context.new_page()
         captured_comments: List[Dict[str, Any]] = []
 
-        # Interceptor de la API de comentarios de TikTok
         async def intercept_comments(response):
+            nonlocal captured_comments
             nonlocal captured_comments
             if "comment/list" in response.url:
                 try:
@@ -380,7 +383,8 @@ class TikTokScraper:
                     for c in raw_comments:
                         u = c.get("user", {}) or {}
                         c_id = str(c.get("cid", ""))
-                        if not any(x["comment_id"] == c_id for x in captured_comments):
+                        ya_capturado = any(x["comment_id"] == c_id for x in captured_comments)
+                        if not ya_capturado:
                             created_ts = c.get("create_time", 0)
                             dt_str = ""
                             if created_ts:
