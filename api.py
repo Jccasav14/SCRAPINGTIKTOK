@@ -16,11 +16,11 @@ app = FastAPI(
     description="API REST para obtener datos de perfiles de TikTok, videos e interacciones, y comentarios.",
     version="2.0.0",
     openapi_tags=[
-        {"name": "Scraper", "description": "Endpoints principales para extracción de perfiles y videos"},
+        {"name": "Scraper", "description": "Endpoints principales para extracción de perfiles, videos y comentarios"},
+        {"name": "Health", "description": "Verificación de salud del microservicio"},
     ]
 )
 
-# Habilitar CORS para permitir peticiones desde aplicaciones móviles o web
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
