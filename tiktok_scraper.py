@@ -445,7 +445,6 @@ class TikTokScraper:
                 "comments": []
             }
 
-        # Extraer metadatos de rehidratación
         try:
             el = await page.wait_for_selector("script#__UNIVERSAL_DATA_FOR_REHYDRATION__", state="attached", timeout=12000)
             if el:
@@ -489,7 +488,6 @@ class TikTokScraper:
             if m:
                 video_info["video_id"] = m.group(1)
 
-        # Esperar botón de comentarios y hacer clic nativo para activar la carga de api/comment/list
         try:
             btn = await page.wait_for_selector(
                 '[data-e2e="comment-icon"], [data-e2e="comment-count"], button[class*="tux"]:has-text("Comentarios"), button[class*="tux"]:has-text("Comments")',
@@ -503,7 +501,6 @@ class TikTokScraper:
                         break
                     await asyncio.sleep(0.5)
 
-            # Si aún no se capturaron comentarios, intentar clic en la pestaña de Comentarios
             if not captured_comments:
                 tab_btn = await page.query_selector('button[class*="tux"]:has-text("Comentarios"), button[class*="tux"]:has-text("Comments")')
                 if tab_btn:
@@ -515,7 +512,6 @@ class TikTokScraper:
         except Exception as e:
             logger.warning(f"Aviso al hacer clic en comentarios: {e}")
 
-        # Fallback por si la API no atrapó suficientes comentarios: extraer de DOM
         if len(captured_comments) < max_comments:
             try:
                 dom_comments = await page.evaluate("""() => {
@@ -536,7 +532,8 @@ class TikTokScraper:
                     return list;
                 }""")
                 for dc in dom_comments:
-                    if not any(x["text"] == dc["text"] for x in captured_comments):
+                    no_esta_repetido = not any(x["text"] == dc["text"] for x in captured_comments)
+                    if no_esta_repetido:
                         captured_comments.append({
                             "comment_id": "",
                             "username": dc.get("username", ""),
@@ -563,7 +560,9 @@ def scrape_tiktok_user(
     max_videos: int = 10,
     max_comments: int = 20
 ) -> Dict[str, Any]:
-    """Helper sincrónico para ejecutar el scraper de TikTok con videos y comentarios."""
+    """
+    Función de acceso directo síncrono para ejecutar el scraper sin configurar 'asyncio.run()' a mano.
+    """
     scraper = TikTokScraper(session_id=session_id)
     return asyncio.run(scraper.scrape(username, max_videos=max_videos, max_comments_per_video=max_comments))
 
