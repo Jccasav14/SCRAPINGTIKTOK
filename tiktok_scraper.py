@@ -112,7 +112,6 @@ class TikTokScraper:
 
             following_private = False
 
-            # Intercept follower/following list API calls
             async def intercept_user_list(response):
                 nonlocal followers_list, following_list, following_private
                 if "api/user/list" in response.url:
