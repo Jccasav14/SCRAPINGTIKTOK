@@ -309,8 +309,8 @@ class TikTokScraper:
 
     async def _extract_video_urls(self, browser: Any, username: str, max_videos: int) -> List[str]:
         """
-        Extrae la lista de URLs de los videos más recientes del usuario.
-        Utiliza la búsqueda de TikTok filtrada por el autor exacto y scroll progresivo en un contexto limpio.
+        Busca los videos del autor en TikTok mediante búsqueda oficial y scroll vertical.
+        Luego ordena los enlaces de mayor a menor por su ID numérico (Snowflake: ID más alto = más reciente).
         Los videos se ordenan descendentemente por su ID (Snowflake: ID mayor = más reciente).
         """
         raw_urls: List[str] = []
@@ -326,7 +326,6 @@ class TikTokScraper:
             await page.goto(search_url, wait_until="domcontentloaded", timeout=25000)
             await asyncio.sleep(2.5)
 
-            # Scroll progresivo para cargar los videos más recientes
             scroll_count = max(4, (max_videos + 2) // 3)
             for _ in range(scroll_count):
                 await page.mouse.wheel(0, 1500)
@@ -337,7 +336,9 @@ class TikTokScraper:
             )
             for l in links:
                 base = l.split("?")[0]
-                if f"/@{clean_user}/video/" in base.lower() and base not in raw_urls:
+                es_video_del_usuario = f"/@{clean_user}/video/" in base.lower()
+                no_esta_repetido = base not in raw_urls
+                if es_video_del_usuario and no_esta_repetido:
                     raw_urls.append(base)
         except Exception as e:
             logger.warning(f"Aviso en búsqueda de videos: {e}")
@@ -347,12 +348,12 @@ class TikTokScraper:
             except Exception:
                 pass
 
-        # Ordenar los videos descendentemente por ID numérico (Snowflake)
         def _get_vid_id(u: str) -> int:
             m = re.search(r"/video/(\d+)", u)
             return int(m.group(1)) if m else 0
 
-        sorted_urls = sorted(list(dict.fromkeys(raw_urls)), key=_get_vid_id, reverse=True)
+        unique_urls = list(dict.fromkeys(raw_urls))
+        sorted_urls = sorted(unique_urls, key=_get_vid_id, reverse=True)
         return sorted_urls[:max_videos]
 
     async def _extract_single_video_details(
