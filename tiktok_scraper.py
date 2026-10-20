@@ -20,13 +20,19 @@ logger = logging.getLogger("TikTokScraper")
 
 
 def load_env_cookie() -> Optional[str]:
-    """Lee TIKTOK_SESSION_ID desde archivo .env o variables de entorno."""
-    if os.path.exists(".env"):
+    """
+    Lee de forma segura el archivo local '.env' en busca de la variable 'TIKTOK_SESSION_ID'.
+    Si existe, retorna la cookie en texto plano para autenticar peticiones automáticamente.
+    Si no existe el archivo, busca en las variables de entorno del sistema operativo.
+    """
+    script_dir = os.path.dirname(__file__)
+    env_file = os.path.join(script_dir, ".env")
+    if os.path.exists(env_file):
         try:
-            with open(".env", "r", encoding="utf-8") as f:
+            with open(env_file, "r", encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
-                    if line.startswith("TIKTOK_SESSION_ID="):
+                    if line.startswith("TIKTOK_SESSION_ID=") and not line.startswith("#"):
                         return line.split("=", 1)[1].strip().strip('"').strip("'")
         except Exception:
             pass
