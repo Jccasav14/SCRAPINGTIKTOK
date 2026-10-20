@@ -280,11 +280,7 @@ class TikTokScraper:
             # Remove listener for user list
             page.remove_listener("response", intercept_user_list)
 
-            # =========================================================================
-            # EXTRAER ÚLTIMOS VIDEOS Y SUS COMENTARIOS (HASTA max_videos)
-            # =========================================================================
             if max_videos > 0:
-                # Cerrar página de perfil una vez extraídos datos y listas
                 await page.close()
 
                 logger.info(f"Buscando los últimos {max_videos} videos de @{clean_user}...")
@@ -294,7 +290,6 @@ class TikTokScraper:
                 videos_data = []
                 for idx, v_url in enumerate(video_urls, 1):
                     logger.info(f"Extrayendo métricas y comentarios [{idx}/{len(video_urls)}]: {v_url}")
-                    # Usar un contexto aislado por video para evitar bloqueos de velocidad de TikTok
                     v_ctx = await browser.new_context(viewport={"width": 1280, "height": 800}, locale="es-ES")
                     if self.session_id:
                         await v_ctx.add_cookies([{"name": "sessionid", "value": self.session_id, "domain": ".tiktok.com", "path": "/"}])
