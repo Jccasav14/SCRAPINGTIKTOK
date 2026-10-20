@@ -2,20 +2,49 @@
 
 ![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg) ![Playwright](https://img.shields.io/badge/playwright-v1.40-green.svg) ![FastAPI](https://img.shields.io/badge/fastAPI-0.100%2B-teal.svg) ![License](https://img.shields.io/badge/license-MIT-purple.svg)
 
-
-
-
-## 🛠️ Preguntas Frecuentes y Solución de Problemas
-
-### ¿Por qué la lista de seguidos aparece como privada?
-TikTok permite a cada usuario configurar su lista de seguidos como privada ('Solo yo'). En esos casos la API devuelve código `10222` y el scraper lo notifica explícitamente.
-
-### Despliegue en la Nube (Railway / Render / VPS)
-Puedes desplegar `api.py` fácilmente ejecutando:
-```bash
-playwright install --with-deps chromium
-uvicorn api:app --host 0.0.0.0 --port 8000
-```
+Scraper profesional para perfiles de TikTok desarrollado en Python con **Playwright**, **Playwright-Stealth** y **FastAPI**. Extrae información completa de usuarios, métricas de videos y comentarios en tiempo real sin requerir APIs oficiales de pago.
 
 ---
-*Desarrollado para la materia de Programación para Dispositivos Móviles - Décimo Semestre.* 🚀
+
+## 🚀 Características Principales
+
+- **Datos de Perfil Completos**:
+  - Nickname, usuario único (`@username`), biografía y verificación oficial.
+  - Foto de perfil en máxima resolución (avatar HD).
+  - Métricas globales: seguidores, seguidos, me gusta totales y total de videos publicados.
+- **Listas de Seguidores y Seguidos**:
+  - Extracción directa mediante scroll inteligente en modal nativo.
+  - Detección automática de listas privadas (código TikTok `10222`).
+- **Últimos Videos e Interacciones**:
+  - Extracción de videos recientes ordenados cronológicamente por Snowflake ID.
+  - Métricas individuales: Likes, Comentarios, Vistas (play count), Shares y Guardados.
+  - Metadatos de música/audio (título de canción y artista).
+- **Comentarios Reales por Video**:
+  - Intercepción asíncrona de eventos de red hacia `api/comment/list`.
+  - Fallback por evaluación de DOM ante respuestas bloqueadas o dinámicas.
+  - Identificación del autor de cada comentario, fecha formateada y likes recibidos.
+- **Doble Modo de Uso**:
+  - Consola interactiva (CLI) con salida enriquecida y exportación JSON.
+  - Servidor REST (FastAPI) con Swagger UI interactivo listo para apps móviles.
+
+---
+
+## 🏗️ Arquitectura Modular
+
+```
+ScrapyTikTok/
+│
+├── tiktok_scraper.py   # Motor principal de scraping asíncrono con Playwright Stealth
+├── cli.py              # Interfaz de línea de comandos para terminal
+├── api.py              # API RESTful con FastAPI y Swagger UI
+├── requirements.txt    # Dependencias del proyecto
+├── .env.example        # Plantilla para cookie opcional TIKTOK_SESSION_ID
+└── README.md           # Documentación y manual de uso
+```
+
+### Flujo de Ejecución
+
+1. **Evasión Anti-Detección**: Playwright inicia Chromium enmascarando `navigator.webdriver` y flags de automatización.
+2. **Rehidratación de Datos**: Navega al perfil e intercepta `__UNIVERSAL_DATA_FOR_REHYDRATION__` para obtener estadísticas exactas.
+3. **Pestañas Aisladas por Video**: Cada video se procesa en un contexto limpio para evitar rate limits de TikTok.
+4. **Intercepción de Comentarios**: Escucha el endpoint `comment/list` de TikTok al disparar el botón nativo de comentarios.
