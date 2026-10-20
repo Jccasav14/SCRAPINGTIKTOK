@@ -13,11 +13,9 @@ import argparse
 import logging
 from tiktok_scraper import TikTokScraper, scrape_tiktok_user
 
-# Configurar encoding en Windows si es necesario
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
 
-# Configurar logging con formato limpio para mostrar el progreso en tiempo real
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S")
 logging.getLogger("TikTokScraper").setLevel(logging.INFO)
 
@@ -53,7 +51,6 @@ def display_results(data: dict):
     print(f" • Foto de Perfil HD:  {avatar[:80]}..." if len(avatar) > 80 else f" • Foto de Perfil HD:  {avatar}")
     print("-" * 65)
 
-    # 1. Listados de seguidores y seguidos
     following_list = data.get("following_list", [])
     followers_list = data.get("followers_list", [])
     
@@ -80,7 +77,6 @@ def display_results(data: dict):
         print("   Para desbloquear la lista de nombres, puedes pasar tu cookie con:")
         print("   python cli.py <usuario> --session-id TU_COOKIE_SESSIONID")
 
-    # 2. Videos y Métricas de interacción
     videos = data.get("videos", [])
     if videos:
         print("\n" + "=" * 65)
@@ -102,7 +98,6 @@ def display_results(data: dict):
             print(f"     🔄 Shares:      {v.get('shares_count', 0):,}")
             print(f"     ⭐ Guardados:   {v.get('bookmarks_count', 0):,}")
 
-            # Comentarios del video
             comments = v.get("comments", [])
             if comments:
                 print(f"     💬 Comentarios extraídos ({len(comments)}):")
@@ -121,7 +116,6 @@ def display_results(data: dict):
     else:
         print("\nℹ️ No se encontraron videos públicos para este usuario.")
 
-    # Guardar en archivo JSON completo
     username = data.get("username", "resultado")
     out_file = f"tiktok_{username}.json"
     with open(out_file, "w", encoding="utf-8") as f:
