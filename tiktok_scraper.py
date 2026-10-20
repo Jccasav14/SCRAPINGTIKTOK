@@ -393,14 +393,22 @@ class TikTokScraper:
                                 except Exception:
                                     pass
 
+                            author_user = u.get("unique_id", "") or u.get("uniqueId", "")
+                            author_nick = u.get("nickname", "")
+                            avatar_obj = u.get("avatar_thumb", {})
+                            author_avatar = avatar_obj.get("url_list", [""])[0] if isinstance(avatar_obj, dict) else ""
+                            comment_text = c.get("text", "")
+                            comment_likes = c.get("digg_count", 0)
+                            comment_replies = c.get("reply_comment_total", 0)
+
                             captured_comments.append({
                                 "comment_id": c_id,
-                                "username": u.get("unique_id", "") or u.get("uniqueId", ""),
-                                "nickname": u.get("nickname", ""),
-                                "avatar_url": u.get("avatar_thumb", {}).get("url_list", [""])[0] if isinstance(u.get("avatar_thumb"), dict) else "",
-                                "text": c.get("text", ""),
-                                "likes_count": c.get("digg_count", 0),
-                                "replies_count": c.get("reply_comment_total", 0),
+                                "username": author_user,
+                                "nickname": author_nick,
+                                "avatar_url": author_avatar,
+                                "text": comment_text,
+                                "likes_count": comment_likes,
+                                "replies_count": comment_replies,
                                 "create_time": created_ts,
                                 "date": dt_str
                             })
@@ -470,8 +478,9 @@ class TikTokScraper:
                 video_info["views_count"] = _to_int(stats.get("playCount"))
                 video_info["shares_count"] = _to_int(stats.get("shareCount"))
                 video_info["bookmarks_count"] = _to_int(stats.get("collectCount"))
-                video_info["music_title"] = item.get("music", {}).get("title", "")
-                video_info["music_author"] = item.get("music", {}).get("authorName", "")
+                music_obj = item.get("music", {})
+                video_info["music_title"] = music_obj.get("title", "")
+                video_info["music_author"] = music_obj.get("authorName", "")
         except Exception as e:
             logger.warning(f"Error parseando universal data del video: {e}")
 
