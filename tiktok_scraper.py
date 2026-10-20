@@ -42,9 +42,9 @@ def load_env_cookie() -> Optional[str]:
 class TikTokScraper:
     def __init__(self, session_id: Optional[str] = None, headless: bool = True):
         """
-        :param session_id: Optional TikTok 'sessionid' cookie value to bypass login walls.
-                           Si no se especifica, se lee automáticamente desde el archivo .env
-        :param headless: Run browser in headless mode.
+        Constructor de la clase: inicializa sesión, modo headless y camuflaje anti-bot.
+        :param session_id: Cookie opcional de TikTok para saltar login wall.
+        :param headless: Si es True, ejecuta en segundo plano.
         """
         self.session_id = session_id or load_env_cookie()
         self.headless = headless
