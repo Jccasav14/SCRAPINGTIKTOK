@@ -25,4 +25,17 @@ def extract_numbers_from_data(data: Dict[str, Any]) -> List[int]:
         val = data.get(key)
         if isinstance(val, (int, float)) and val >= 10:
             numbers.append(int(val))
+
+    for follower in data.get("followers_list", []):
+        f_count = follower.get("followers_count")
+        if isinstance(f_count, (int, float)) and f_count >= 10:
+            numbers.append(int(f_count))
+        fg_count = follower.get("following_count")
+        if isinstance(fg_count, (int, float)) and fg_count >= 10:
+            numbers.append(int(fg_count))
+
+    for following in data.get("following_list", []):
+        f_count = following.get("followers_count")
+        if isinstance(f_count, (int, float)) and f_count >= 10:
+            numbers.append(int(f_count))
     return numbers
