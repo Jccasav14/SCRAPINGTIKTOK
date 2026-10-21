@@ -52,4 +52,4 @@ def extract_numbers_from_data(data: Dict[str, Any]) -> List[int]:
 
     return numbers
 
-# first-digit parsing
+# chi-square calculation
