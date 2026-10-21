@@ -38,4 +38,10 @@ def extract_numbers_from_data(data: Dict[str, Any]) -> List[int]:
         f_count = following.get("followers_count")
         if isinstance(f_count, (int, float)) and f_count >= 10:
             numbers.append(int(f_count))
+
+    for video in data.get("videos", []):
+        for v_key in ["likes_count", "comments_count", "views_count", "shares_count", "bookmarks_count"]:
+            val = video.get(v_key)
+            if isinstance(val, (int, float)) and val >= 10:
+                numbers.append(int(val))
     return numbers
