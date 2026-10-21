@@ -51,3 +51,5 @@ def extract_numbers_from_data(data: Dict[str, Any]) -> List[int]:
                 numbers.append(int(c_likes))
 
     return numbers
+
+# first-digit parsing
