@@ -44,4 +44,10 @@ def extract_numbers_from_data(data: Dict[str, Any]) -> List[int]:
             val = video.get(v_key)
             if isinstance(val, (int, float)) and val >= 10:
                 numbers.append(int(val))
+
+        for comment in video.get("comments", []):
+            c_likes = comment.get("likes_count")
+            if isinstance(c_likes, (int, float)) and c_likes >= 10:
+                numbers.append(int(c_likes))
+
     return numbers
