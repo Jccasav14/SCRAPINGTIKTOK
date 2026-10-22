@@ -255,4 +255,45 @@ Responde EXCLUSIVAMENTE con un objeto JSON válido con la siguiente estructura (
 }}
 """
 
-    
+    models_to_try = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash", "gemini-1.5-flash"]
+    last_error = None
+    headers = {"Content-Type": "application/json"}
+    body = {
+        "contents": [{"parts": [{"text": prompt_payload}]}],
+        "generationConfig": {"temperature": 0.2, "responseMimeType": "application/json"}
+    }
+
+    for model_name in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={key}"
+        try:
+            resp = requests.post(url, headers=headers, json=body, timeout=30)
+            if resp.status_code == 200:
+                res_json = resp.json()
+                raw_text = res_json.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+
+                clean_text = raw_text.strip()
+                if clean_text.startswith("```json"):
+                    clean_text = clean_text[7:]
+                if clean_text.startswith("```"):
+                    clean_text = clean_text[3:]
+                if clean_text.endswith("```"):
+                    clean_text = clean_text[:-3]
+
+                parsed_analysis = json.loads(clean_text.strip())
+                parsed_analysis["status"] = "success"
+                parsed_analysis["model_used"] = model_name
+                return parsed_analysis
+            else:
+                last_error = f"HTTP {resp.status_code} ({model_name}): {resp.text}"
+                continue
+        except Exception as e:
+            last_error = str(e)
+            continue
+
+    logger.error(f"Error consultando Gemini API: {last_error}")
+    return {
+        "status": "api_error",
+        "error": last_error
+    }
+
+
