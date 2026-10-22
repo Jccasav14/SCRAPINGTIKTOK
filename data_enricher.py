@@ -297,3 +297,70 @@ Responde EXCLUSIVAMENTE con un objeto JSON válido con la siguiente estructura (
     }
 
 
+def print_enrichment_report(benford_res: Dict[str, Any], big_five_res: Dict[str, Any], username: str):
+    print("\n" + "=" * 70)
+    print(f"      HUELLA DIGITAL & ENRIQUECIMIENTO DE DATOS: @{username}")
+    print("=" * 70)
+
+    print("\n" + "─" * 70)
+    print(" 📊 MODELO 1: LEY DE BENFORD & ANÁLISIS FORENSE (Primer Dígito)")
+    print("─" * 70)
+    if benford_res.get("status") == "success":
+        print(f" • Muestra de métricas analizadas:  {benford_res['sample_size']} datos numéricos")
+        print(f" • Estadístico Chi-cuadrado (χ²):    {benford_res['chi2_statistic']}")
+        print(f" • Valor P (p-value):               {benford_res['p_value']}")
+        print(f" • Estado:                          {'✅ Conforme a Benford' if benford_res['conforms_to_benford'] else '⚠️ Desviación Estadística'}")
+        print(f" • Conclusión:                      {benford_res['interpretation']}\n")
+
+        print("  Dígito │ Observado │ Esperado │ Curva Comparativa (Obs vs Benford)")
+        print("  ───────┼───────────┼──────────┼────────────────────────────────────")
+        for d in range(1, 10):
+            item = benford_res["digits_comparison"][d]
+            obs_pct = item["observed_pct"]
+            exp_pct = item["expected_pct"]
+            bar_len = int(obs_pct / 2)
+            bar = "█" * bar_len
+            print(f"     {d}   │   {obs_pct:5.1f}%  │   {exp_pct:5.1f}% │ {bar:<15} (Dif: {item['difference_pct']:+5.1f}%)")
+    else:
+        print(f" • {benford_res.get('message', 'No se pudo realizar el análisis.')}")
+
+    print("\n" + "─" * 70)
+    print(" 🧠 MODELO 2: PERFIL PSICOMÉTRICO BIG FIVE (OCEAN con Gemini AI)")
+    print("─" * 70)
+    if big_five_res.get("status") == "success":
+        traits = big_five_res.get("ocean_traits", {})
+        print(f" 🎭 Arquetipo de Creador: {big_five_res.get('archetype', 'No definido')}\n")
+
+        trait_names = [
+            ("openness", "Apertura a Experiencias (O)", "🎨"),
+            ("conscientiousness", "Responsabilidad / Logro  (C)", "📐"),
+            ("extraversion", "Extraversión / Energía   (E)", "⚡"),
+            ("agreeableness", "Amabilidad / Empatía     (A)", "🤝"),
+            ("neuroticism", "Neuroticismo / Tensión   (N)", "🧘"),
+        ]
+
+        for k, name, icon in trait_names:
+            t_data = traits.get(k, {})
+            score = t_data.get("score", 0)
+            level = t_data.get("level", "N/A")
+            analysis = t_data.get("analysis", "")
+            bar = "█" * (score // 5)
+            print(f" {icon} {name}: [{bar:<20}] {score:3d}/100 ({level})")
+            print(f"    ↳ {analysis}\n")
+
+        print(f" 📝 Resumen Psicométrico:")
+        print(f"    {big_five_res.get('summary', '').replace(chr(10), ' ')}")
+
+        aud = big_five_res.get("audience_profile", {})
+        if aud:
+            print(f"\n 👥 Percepción de la Audiencia:")
+            print(f"    • Clima Emocional: {aud.get('community_sentiment', 'N/A')}")
+            print(f"    • Emoción Primaria: {aud.get('primary_emotion', 'N/A')}")
+    elif big_five_res.get("status") == "missing_api_key":
+        print(f" 🔑 {big_five_res.get('message')}")
+    else:
+        print(f" ⚠️ No se pudo completar el análisis de Gemini: {big_five_res.get('error')}")
+
+    print("=" * 70 + "\n")
+
+
