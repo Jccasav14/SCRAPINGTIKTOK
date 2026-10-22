@@ -162,3 +162,97 @@ def analyze_benford(data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def analyze_big_five_gemini(data: Dict[str, Any], api_key: Optional[str] = None) -> Dict[str, Any]:
+    key = api_key or load_env_key("GEMINI_API_KEY")
+    if not key or key == "tu_gemini_api_key_aqui":
+        return {
+            "status": "missing_api_key",
+            "message": "Falta la clave 'GEMINI_API_KEY' en tu archivo .env. Consíguela gratis en https://aistudio.google.com/ e ingrésala en .env"
+        }
+
+    username = data.get("username", "desconocido")
+    nickname = data.get("nickname", username)
+    bio = data.get("bio", "Sin biografía")
+    bio_link = data.get("bio_link", "Ninguno")
+    followers = data.get("followers_count", 0)
+
+    videos = data.get("videos", [])
+    video_summaries = []
+    sample_comments = []
+
+    for idx, v in enumerate(videos[:10], 1):
+        desc = v.get("description", "")
+        dur = v.get("duration", 0)
+        views = v.get("views_count", 0)
+        likes = v.get("likes_count", 0)
+        tags = ", ".join(v.get("hashtags", [])[:5])
+        video_summaries.append(f"- Video {idx}: '{desc}' | Duración: {dur}s | Vistas: {views:,} | Likes: {likes:,} | Tags: {tags}")
+
+        for c in v.get("comments", [])[:4]:
+            t = c.get("text", "").replace("\n", " ")
+            if t and len(t) > 3:
+                sample_comments.append(f"@{c.get('username')}: \"{t}\"")
+
+    prompt_payload = f"""
+Eres un psicólogo computacional y analista de datos de redes sociales experto.
+Analiza la huella digital del siguiente creador de TikTok a partir de sus publicaciones, temas, métricas y los comentarios reales de su comunidad.
+
+DATOS DEL CREADOR:
+- Usuario: @{username} ({nickname})
+- Biografía: {bio}
+- Enlace Externo: {bio_link}
+- Total de Seguidores: {followers:,}
+
+RESUMEN DE SUS VIDEOS RECIENTES:
+{chr(10).join(video_summaries)}
+
+MUESTRA DE COMENTARIOS DE SU COMUNIDAD:
+{chr(10).join(sample_comments[:30])}
+
+INSTRUCCIONES DE ANÁLISIS:
+Evalúa las 5 dimensiones del modelo de personalidad Big Five (OCEAN):
+1. Openness (Apertura a nuevas experiencias / Creatividad / Originalidad)
+2. Conscientiousness (Responsabilidad / Organización / Enfoque al logro)
+3. Extraversion (Extraversión / Sociabilidad / Energía / Dinamismo)
+4. Agreeableness (Amabilidad / Altruismo / Empatía / Filantropía)
+5. Neuroticism (Neuroticismo / Ansiedad / Emotividad negativa)
+
+Responde EXCLUSIVAMENTE con un objeto JSON válido con la siguiente estructura (sin formato Markdown adicional, solo el JSON puro):
+{{
+  "archetype": "Nombre del Arquetipo (ej: El Filántropo Visionario, El Artista Dinámico, etc.)",
+  "summary": "Resumen ejecutivo del perfil psicológico del creador (máximo 3 párrafos concisos)",
+  "ocean_traits": {{
+    "openness": {{
+      "score": 90,
+      "level": "Muy Alto",
+      "analysis": "Justificación basada en el contenido analizado"
+    }},
+    "conscientiousness": {{
+      "score": 85,
+      "level": "Alto",
+      "analysis": "Justificación basada en el contenido analizado"
+    }},
+    "extraversion": {{
+      "score": 95,
+      "level": "Muy Alto",
+      "analysis": "Justificación basada en el contenido analizado"
+    }},
+    "agreeableness": {{
+      "score": 80,
+      "level": "Alto",
+      "analysis": "Justificación basada en el contenido analizado"
+    }},
+    "neuroticism": {{
+      "score": 15,
+      "level": "Bajo",
+      "analysis": "Justificación basada en el contenido analizado"
+    }}
+  }},
+  "audience_profile": {{
+    "community_sentiment": "Descripción del ánimo y reacción de los seguidores",
+    "primary_emotion": "Humor / Admiración / Curiosidad / etc."
+  }}
+}}
+"""
+
+    
