@@ -88,3 +88,70 @@ def generate_benford_svg(benford_res: Dict[str, Any], username: str) -> str:
 </svg>"""
 
 
+def generate_big_five_svg(big_five_res: Dict[str, Any], username: str) -> str:
+    archetype = big_five_res.get("archetype", "Perfil Creativo Multifacético")
+    traits = big_five_res.get("ocean_traits", {})
+    audience = big_five_res.get("audience_profile", {})
+    sentiment = audience.get("community_sentiment", "Sentimiento positivo y entusiasta de la audiencia.")
+    primary_emotion = audience.get("primary_emotion", "Admiración / Curiosidad")
+
+    svg_width = 860
+    svg_height = 550
+
+    traits_config = [
+        ("openness", "Apertura a Experiencias (O)", "🎨", "#0284c7"),
+        ("conscientiousness", "Responsabilidad y Logro (C)", "📐", "#16a34a"),
+        ("extraversion", "Extraversión y Energía (E)", "⚡", "#d97706"),
+        ("agreeableness", "Amabilidad y Altruismo (A)", "🤝", "#7c3aed"),
+        ("neuroticism", "Neuroticismo / Tensión (N)", "🧘", "#dc2626"),
+    ]
+
+    bars_svg = []
+    start_y = 110
+    bar_max_w = 480
+
+    for idx, (k, name, icon, color) in enumerate(traits_config):
+        t_data = traits.get(k, {})
+        score = int(t_data.get("score", 50))
+        level = t_data.get("level", "N/A")
+        analysis = t_data.get("analysis", "")[:75]
+        if len(t_data.get("analysis", "")) > 75:
+            analysis += "..."
+
+        y = start_y + idx * 62
+        fill_w = max(10, int((score / 100) * bar_max_w))
+
+        bars_svg.append(f"""
+        <!-- Trait {k} -->
+        <text x="36" y="{y + 16}" fill="#0f172a" font-size="13" font-weight="bold">{icon} {name}</text>
+        <text x="36" y="{y + 34}" fill="#64748b" font-size="11">{analysis}</text>
+
+        <!-- Bar background -->
+        <rect x="290" y="{y + 4}" width="{bar_max_w}" height="18" fill="#f1f5f9" rx="9"/>
+        <!-- Bar fill -->
+        <rect x="290" y="{y + 4}" width="{fill_w}" height="18" fill="{color}" rx="9"/>
+        <!-- Score text -->
+        <text x="{290 + bar_max_w + 14}" y="{y + 18}" fill="#0f172a" font-size="13" font-weight="bold">{score}/100 <tspan fill="#64748b" font-size="11">({level})</tspan></text>
+        """)
+
+    if len(sentiment) > 130:
+        sentiment = sentiment[:127] + "..."
+
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {svg_width} {svg_height}" width="100%" height="100%" style="background:#ffffff; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; border-radius:8px; border:1px solid #e2e8f0;">
+  <!-- Título -->
+  <text x="32" y="40" fill="#0f172a" font-size="19" font-weight="bold">🧠 Psicometría Big Five (OCEAN) & Emociones</text>
+  <text x="32" y="65" fill="#64748b" font-size="13">Perfil auditado: <tspan fill="#0284c7" font-weight="bold">@{username}</tspan> | Evaluado con: <tspan fill="#0f172a" font-weight="600">Google Gemini 2.5 Flash</tspan></text>
+
+  <!-- Banner Arquetipo -->
+  <rect x="32" y="80" width="796" height="34" fill="#faf5ff" stroke="#e9d5ff" rx="6"/>
+  <text x="48" y="102" fill="#7c3aed" font-size="13" font-weight="bold">🎭 Arquetipo: <tspan fill="#581c87">{archetype}</tspan></text>
+
+  <!-- Barras OCEAN -->
+  {''.join(bars_svg)}
+
+  <!-- Caja de Audiencia y Emociones -->
+  <rect x="32" y="435" width="796" height="90" fill="#f8fafc" stroke="#e2e8f0" rx="8"/>
+  <text x="50" y="462" fill="#0f172a" font-size="14" font-weight="bold">👥 Emociones y Percepción de la Comunidad:</text>
+  <text x="50" y="486" fill="#334155" font-size="12.5">• <tspan fill="#64748b">Emoción Primaria:</tspan> <tspan font-weight="bold" fill="#0284c7">{primary_emotion}</tspan></text>
+  <text x="50" y="508" fill="#334155" font-size="12.5">• <tspan fill="#64748b">Clima Emocional:</tspan> {sentiment}</text>
+</svg>"""
