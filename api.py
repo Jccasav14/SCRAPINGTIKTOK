@@ -184,3 +184,239 @@ def _get_or_scrape_data(username: str) -> Dict[str, Any]:
 
 
 # =============================================================================
+# GRÁFICOS VISUALES EN SWAGGER
+# =============================================================================
+
+@app.get(
+    "/api/tiktok/{username}/chart/benford",
+    tags=["Visual Charts"],
+    summary="📊 Gráfico de Barras de la Ley de Benford (SVG)",
+    response_class=Response,
+    responses={
+        200: {
+            "content": {"image/svg+xml": {}},
+            "description": "Renderiza el gráfico de barras comparativas directamente dentro de Swagger."
+        }
+    }
+)
+async def get_benford_chart(username: str):
+    clean_user = username.lstrip("@").strip()
+    data = _get_or_scrape_data(clean_user)
+    if not data:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No hay datos guardados para @{clean_user}. Ejecútalo primero en el scraper o /enrich."
+        )
+
+    benford_res = data.get("data_enrichment", {}).get("benford_law_analysis")
+    if not benford_res:
+        benford_res = analyze_benford(data)
+
+    svg_content = generate_benford_svg(benford_res, clean_user)
+    return Response(content=svg_content, media_type="image/svg+xml")
+
+
+@app.get(
+    "/api/tiktok/{username}/chart/big-five",
+    tags=["Visual Charts"],
+    summary="🧠 Gráfico de Psicometría Big Five y Emociones (SVG)",
+    response_class=Response,
+    responses={
+        200: {
+            "content": {"image/svg+xml": {}},
+            "description": "Renderiza las barras de los 5 rasgos OCEAN y emociones directamente en Swagger."
+        }
+    }
+)
+async def get_big_five_chart(username: str):
+    clean_user = username.lstrip("@").strip()
+    data = _get_or_scrape_data(clean_user)
+    if not data:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No hay datos guardados para @{clean_user}. Ejecútalo primero en el scraper o /enrich."
+        )
+
+    big_five_res = data.get("data_enrichment", {}).get("big_five_ocean_profile")
+    if not big_five_res or big_five_res.get("status") != "success":
+        big_five_res = analyze_big_five_gemini(data)
+
+    svg_content = generate_big_five_svg(big_five_res, clean_user)
+    return Response(content=svg_content, media_type="image/svg+xml")
+
+
+# =============================================================================
+# ENRIQUECIMIENTO DE DATOS
+# =============================================================================
+
+@app.post("/api/tiktok/{username}/enrich", tags=["Enrichment"])
+async def enrich_tiktok_user(
+    username: str,
+    force_rescrape: bool = Query(False, description="Si es True, vuelve a scrapear aunque ya exista en 'scraped_data/'")
+):
+    clean_user = username.lstrip("@").strip()
+    data = None if force_rescrape else _get_or_scrape_data(clean_user)
+
+    if not data:
+        scraper = TikTokScraper(headless=True)
+        data = await scraper.scrape(username=clean_user, max_list_items=30, max_videos=10, max_comments_per_video=15)
+        if not data.get("success"):
+            raise HTTPException(status_code=500, detail=f"No se pudo scrapear: {data.get('error')}")
+        os.makedirs("scraped_data", exist_ok=True)
+        with open(os.path.join("scraped_data", f"tiktok_{clean_user}.json"), "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+
+    benford_res = analyze_benford(data)
+    big_five_res = analyze_big_five_gemini(data)
+
+    enriched = dict(data)
+    enriched["data_enrichment"] = {
+        "benford_law_analysis": benford_res,
+        "big_five_ocean_profile": big_five_res
+    }
+
+    os.makedirs("enriched_data", exist_ok=True)
+    out_file = os.path.join("enriched_data", f"tiktok_{clean_user}_enriched.json")
+    with open(out_file, "w", encoding="utf-8") as f:
+        json.dump(enriched, f, indent=2, ensure_ascii=False)
+
+    return {
+        "status": "success",
+        "username": clean_user,
+        "saved_to": out_file,
+        "benford_law": benford_res,
+        "big_five_ocean": big_five_res,
+        "full_data": enriched
+    }
+
+
+@app.get("/api/tiktok/{username}/benford", tags=["Enrichment"])
+async def get_benford_law(username: str):
+    clean_user = username.lstrip("@").strip()
+    data = _get_or_scrape_data(clean_user)
+    if not data:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No hay datos guardados para @{clean_user}. Primero ejecútalo en /api/tiktok/{clean_user} o /enrich."
+        )
+    return analyze_benford(data)
+
+
+@app.get("/api/tiktok/{username}/big-five", tags=["Enrichment"])
+async def get_big_five_profile(username: str):
+    clean_user = username.lstrip("@").strip()
+    data = _get_or_scrape_data(clean_user)
+    if not data:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No hay datos guardados para @{clean_user}. Primero ejecútalo en /api/tiktok/{clean_user} o /enrich."
+        )
+    return analyze_big_five_gemini(data)
+
+
+# =============================================================================
+# SCRAPER ENDPOINTS
+# =============================================================================
+
+@app.get("/api/tiktok/{username}", tags=["Scraper"])
+async def get_tiktok_profile(
+    username: str,
+    max_items: int = Query(30, description="Límite de usuarios en listas de seguidores/seguidos"),
+    max_videos: int = Query(10, description="Cantidad de videos recientes a extraer"),
+    max_comments: int = Query(15, description="Cantidad de comentarios a extraer por cada video"),
+):
+    clean_user = username.lstrip("@").strip()
+    scraper = TikTokScraper(headless=True)
+    data = await scraper.scrape(
+        username=clean_user,
+        max_list_items=max_items,
+        max_videos=max_videos,
+        max_comments_per_video=max_comments
+    )
+    
+    if not data.get("success"):
+        raise HTTPException(
+            status_code=404 if "no encontrado" in data.get("error", "") else 500,
+            detail=data.get("error", "Error al procesar la solicitud.")
+        )
+
+    out_dir = "scraped_data"
+    os.makedirs(out_dir, exist_ok=True)
+    out_file = os.path.join(out_dir, f"tiktok_{clean_user}.json")
+    with open(out_file, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+    return data
+
+
+@app.post("/api/tiktok/scrape", tags=["Scraper"])
+async def post_tiktok_scrape(payload: ScrapeRequest):
+    clean_user = payload.username.lstrip("@").strip()
+    scraper = TikTokScraper(headless=True)
+    data = await scraper.scrape(
+        username=clean_user,
+        max_list_items=payload.max_list_items or 30,
+        max_videos=payload.max_videos or 10,
+        max_comments_per_video=payload.max_comments_per_video or 15
+    )
+    
+    if not data.get("success"):
+        raise HTTPException(
+            status_code=404 if "no encontrado" in data.get("error", "") else 500,
+            detail=data.get("error", "Error al procesar la solicitud.")
+        )
+
+    out_dir = "scraped_data"
+    os.makedirs(out_dir, exist_ok=True)
+    out_file = os.path.join(out_dir, f"tiktok_{clean_user}.json")
+    with open(out_file, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+    return data
+
+
+# =============================================================================
+# GESTIÓN DE ARCHIVOS
+# =============================================================================
+
+@app.get("/api/files", tags=["Files"])
+def list_files():
+    scraped = os.listdir("scraped_data") if os.path.exists("scraped_data") else []
+    enriched = os.listdir("enriched_data") if os.path.exists("enriched_data") else []
+    return {
+        "scraped_files_count": len(scraped),
+        "scraped_files": scraped,
+        "enriched_files_count": len(enriched),
+        "enriched_files": enriched
+    }
+
+
+@app.get("/api/files/{category}/{filename}", tags=["Files"])
+def get_file_content(category: str, filename: str):
+    if category not in ["scraped", "enriched"]:
+        raise HTTPException(status_code=400, detail="Categoría inválida. Usa 'scraped' o 'enriched'.")
+    folder = "scraped_data" if category == "scraped" else "enriched_data"
+    path = os.path.join(folder, os.path.basename(filename))
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Archivo no encontrado.")
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+if __name__ == "__main__":
+    import uvicorn
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, default=8000, help="Puerto de escucha (por defecto 8000)")
+    args, _ = parser.parse_known_args()
+
+    print("\n" + "=" * 65)
+    print(f"🚀 SERVIDOR SWAGGER ACTIVO: http://127.0.0.1:{args.port}/docs")
+    print("   Presiona Ctrl + C para detener el servidor cuando desees.")
+    print("=" * 65 + "\n")
+    try:
+        uvicorn.run("api:app", host="127.0.0.1", port=args.port, reload=True)
+    except Exception as e:
+        print(f"\n⚠️ Error al abrir el puerto {args.port}: {e}")
+        print(f"Probando automáticamente en el puerto 8080...")
+        uvicorn.run("api:app", host="127.0.0.1", port=8080, reload=True)
