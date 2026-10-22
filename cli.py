@@ -176,6 +176,11 @@ def main():
         default=15,
         help="Cantidad de comentarios a extraer por cada video (por defecto: 15).",
     )
+    parser.add_argument(
+        "--enrich",
+        action="store_true",
+        help="Ejecuta automáticamente la Ley de Benford (χ²) y Psicometría Big Five (OCEAN) tras el scraping.",
+    )
 
     args = parser.parse_args()
 
@@ -207,6 +212,15 @@ def main():
         max_comments_per_video=args.max_comments
     ))
     display_results(data)
+
+    if args.enrich and data.get("success"):
+        json_path = os.path.join("scraped_data", f"tiktok_{clean_user}.json")
+        if not os.path.exists(json_path):
+            json_path = f"tiktok_{clean_user}.json"
+        if os.path.exists(json_path):
+            from data_enricher import enrich_file
+            print("\n🔮 Ejecutando enriquecimiento forense y psicométrico...")
+            enrich_file(json_path)
 
 
 if __name__ == "__main__":

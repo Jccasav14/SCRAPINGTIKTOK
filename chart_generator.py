@@ -131,7 +131,7 @@ def generate_big_five_svg(big_five_res: Dict[str, Any], username: str) -> str:
         <!-- Bar fill -->
         <rect x="290" y="{y + 4}" width="{fill_w}" height="18" fill="{color}" rx="9"/>
         <!-- Score text -->
-        <text x="{290 + bar_max_w + 14}" y="{y + 18}" fill="#0f172a" font-size="13" font-weight="bold">{score}/100 <tspan fill="#64748b" font-size="11">({level})</tspan></text>
+        <text x="{290 + bar_max_w + 14}" y="{y + 18}" fill="#0f172a" font-size="13" font-weight="bold">{score}% <tspan fill="#64748b" font-size="11">({level})</tspan></text>
         """)
 
     if len(sentiment) > 130:
@@ -139,8 +139,8 @@ def generate_big_five_svg(big_five_res: Dict[str, Any], username: str) -> str:
 
     return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {svg_width} {svg_height}" width="100%" height="100%" style="background:#ffffff; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; border-radius:8px; border:1px solid #e2e8f0;">
   <!-- Título -->
-  <text x="32" y="40" fill="#0f172a" font-size="19" font-weight="bold">🧠 Psicometría Big Five (OCEAN) & Emociones</text>
-  <text x="32" y="65" fill="#64748b" font-size="13">Perfil auditado: <tspan fill="#0284c7" font-weight="bold">@{username}</tspan> | Evaluado con: <tspan fill="#0f172a" font-weight="600">Google Gemini 2.5 Flash</tspan></text>
+  <text x="32" y="40" fill="#0f172a" font-size="19" font-weight="bold">🧠 Distribución Psicométrica Big Five (OCEAN: 100%) & Emociones</text>
+  <text x="32" y="65" fill="#64748b" font-size="13">Perfil auditado: <tspan fill="#0284c7" font-weight="bold">@{username}</tspan> | Distribución de peso entre los 5 rasgos (Suma total = 100%) | Evaluado con: <tspan fill="#0f172a" font-weight="600">Google Gemini AI</tspan></text>
 
   <!-- Banner Arquetipo -->
   <rect x="32" y="80" width="796" height="34" fill="#faf5ff" stroke="#e9d5ff" rx="6"/>

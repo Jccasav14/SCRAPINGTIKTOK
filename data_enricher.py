@@ -210,40 +210,46 @@ MUESTRA DE COMENTARIOS DE SU COMUNIDAD:
 {chr(10).join(sample_comments[:30])}
 
 INSTRUCCIONES DE ANÁLISIS:
-Evalúa las 5 dimensiones del modelo de personalidad Big Five (OCEAN):
+Evalúa la distribución porcentual de los 5 grandes rasgos de la personalidad (OCEAN):
 1. Openness (Apertura a nuevas experiencias / Creatividad / Originalidad)
 2. Conscientiousness (Responsabilidad / Organización / Enfoque al logro)
 3. Extraversion (Extraversión / Sociabilidad / Energía / Dinamismo)
 4. Agreeableness (Amabilidad / Altruismo / Empatía / Filantropía)
 5. Neuroticism (Neuroticismo / Ansiedad / Emotividad negativa)
 
+REGLAS MATEMÁTICAS OBLIGATORIAS:
+- NINGÚN VALOR DEBE ESTAR QUEMADO O PREDETERMINADO. Debes evaluar objetivamente los datos específicos de este perfil y su comunidad.
+- En el campo "score", asigna un porcentaje entero (número entero sin símbolo %) a cada uno de los 5 rasgos según su peso relativo en el creador.
+- LA SUMA EXACTA DE LOS 5 PUNTAJES (openness + conscientiousness + extraversion + agreeableness + neuroticism) DEBE SER EXACTAMENTE IGUAL A 100%.
+- El campo "level" debe reflejar el porcentaje asignado (ej: "Dominante" si es >=30%, "Alto" si es 20-29%, "Moderado" si es 12-19%, "Bajo" si es <12%).
+
 Responde EXCLUSIVAMENTE con un objeto JSON válido con la siguiente estructura (sin formato Markdown adicional, solo el JSON puro):
 {{
-  "archetype": "Nombre del Arquetipo (ej: El Filántropo Visionario, El Artista Dinámico, etc.)",
+  "archetype": "Nombre original del Arquetipo (ej: El Filántropo Visionario, El Chef Apasionado, etc.)",
   "summary": "Resumen ejecutivo del perfil psicológico del creador (máximo 3 párrafos concisos)",
   "ocean_traits": {{
     "openness": {{
-      "score": 90,
-      "level": "Muy Alto",
+      "score": 35,
+      "level": "Dominante",
       "analysis": "Justificación basada en el contenido analizado"
     }},
     "conscientiousness": {{
-      "score": 85,
+      "score": 25,
       "level": "Alto",
       "analysis": "Justificación basada en el contenido analizado"
     }},
     "extraversion": {{
-      "score": 95,
-      "level": "Muy Alto",
-      "analysis": "Justificación basada en el contenido analizado"
-    }},
-    "agreeableness": {{
-      "score": 80,
+      "score": 20,
       "level": "Alto",
       "analysis": "Justificación basada en el contenido analizado"
     }},
-    "neuroticism": {{
+    "agreeableness": {{
       "score": 15,
+      "level": "Moderado",
+      "analysis": "Justificación basada en el contenido analizado"
+    }},
+    "neuroticism": {{
+      "score": 5,
       "level": "Bajo",
       "analysis": "Justificación basada en el contenido analizado"
     }}
@@ -280,6 +286,40 @@ Responde EXCLUSIVAMENTE con un objeto JSON válido con la siguiente estructura (
                     clean_text = clean_text[:-3]
 
                 parsed_analysis = json.loads(clean_text.strip())
+
+                # Normalización matemática estricta: asegurar que los 5 rasgos sumen exactamente 100%
+                traits = parsed_analysis.get("ocean_traits", {})
+                trait_keys = ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"]
+                raw_scores = {}
+                for k in trait_keys:
+                    val = traits.get(k, {}).get("score", 20)
+                    try:
+                        raw_scores[k] = float(val)
+                    except Exception:
+                        raw_scores[k] = 20.0
+
+                total_sum = sum(raw_scores.values())
+                if total_sum > 0:
+                    accumulated = 0
+                    for i, k in enumerate(trait_keys):
+                        if i == len(trait_keys) - 1:
+                            final_score = 100 - accumulated
+                        else:
+                            final_score = round((raw_scores[k] / total_sum) * 100)
+                            accumulated += final_score
+
+                        final_score = max(1, final_score)
+                        if k in traits and isinstance(traits[k], dict):
+                            traits[k]["score"] = final_score
+                            if final_score >= 30:
+                                traits[k]["level"] = "Dominante"
+                            elif final_score >= 20:
+                                traits[k]["level"] = "Alto"
+                            elif final_score >= 12:
+                                traits[k]["level"] = "Moderado"
+                            else:
+                                traits[k]["level"] = "Bajo"
+
                 parsed_analysis["status"] = "success"
                 parsed_analysis["model_used"] = model_name
                 return parsed_analysis
@@ -344,9 +384,12 @@ def print_enrichment_report(benford_res: Dict[str, Any], big_five_res: Dict[str,
             score = t_data.get("score", 0)
             level = t_data.get("level", "N/A")
             analysis = t_data.get("analysis", "")
-            bar = "█" * (score // 5)
-            print(f" {icon} {name}: [{bar:<20}] {score:3d}/100 ({level})")
+            bar = "█" * (score // 2)
+            print(f" {icon} {name}: [{bar:<25}] {score:2d}% ({level})")
             print(f"    ↳ {analysis}\n")
+
+        total_ocean = sum(traits.get(k, {}).get("score", 0) for k, _, _ in trait_names)
+        print(f" 🎯 Suma de los 5 rasgos evaluados: {total_ocean}% (Distribución normalizada = 100%)\n")
 
         print(f" 📝 Resumen Psicométrico:")
         print(f"    {big_five_res.get('summary', '').replace(chr(10), ' ')}")
