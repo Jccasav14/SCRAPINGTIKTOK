@@ -10,6 +10,7 @@ import re
 import asyncio
 import json
 import logging
+import random
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from playwright.async_api import async_playwright, BrowserContext, Page
@@ -22,21 +23,29 @@ logger = logging.getLogger("TikTokScraper")
 def load_env_cookie() -> Optional[str]:
     """
     Lee de forma segura el archivo local '.env' en busca de la variable 'TIKTOK_SESSION_ID'.
-    Si existe, retorna la cookie en texto plano para autenticar peticiones automáticamente.
-    Si no existe el archivo, busca en las variables de entorno del sistema operativo.
     """
-    script_dir = os.path.dirname(__file__)
-    env_file = os.path.join(script_dir, ".env")
-    if os.path.exists(env_file):
-        try:
-            with open(env_file, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line.startswith("TIKTOK_SESSION_ID=") and not line.startswith("#"):
-                        return line.split("=", 1)[1].strip().strip('"').strip("'")
-        except Exception:
-            pass
-    return os.getenv("TIKTOK_SESSION_ID")
+    env_val = os.getenv("TIKTOK_SESSION_ID")
+    if env_val:
+        return env_val.strip()
+
+    candidates = []
+    if "__file__" in globals():
+        candidates.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+    candidates.append(os.path.join(os.getcwd(), ".env"))
+
+    for env_path in candidates:
+        if os.path.exists(env_path):
+            try:
+                with open(env_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith("TIKTOK_SESSION_ID=") and not line.startswith("#"):
+                            val = line.split("=", 1)[1].strip().strip('"').strip("'")
+                            if val:
+                                return val
+            except Exception:
+                pass
+    return None
 
 
 class TikTokScraper:
@@ -218,6 +227,10 @@ class TikTokScraper:
                 except (ValueError, TypeError):
                     return default
 
+            bio_link_val = user.get("bioLink", {}).get("link", "") if isinstance(user.get("bioLink"), dict) else ""
+            commerce_info = user.get("commerceUserInfo", {}) or {}
+            is_commerce = bool(commerce_info.get("commerceUser", False)) if isinstance(commerce_info, dict) else False
+
             profile_data = {
                 "success": True,
                 "username": user.get("uniqueId", clean_user),
@@ -228,6 +241,9 @@ class TikTokScraper:
                 "heart_count": _parse_stat("heartCount") or _parse_stat("heart"),
                 "video_count": _parse_stat("videoCount"),
                 "bio": user.get("signature", ""),
+                "bio_link": bio_link_val,
+                "is_commerce_user": is_commerce,
+                "region": user.get("region", ""),
                 "verified": user.get("verified", False),
                 "private_account": user.get("privateAccount", False),
                 "sec_uid": user.get("secUid", ""),
@@ -246,10 +262,33 @@ class TikTokScraper:
                     followers_btn = await page.query_selector('strong[data-e2e="followers-count"]')
                     if followers_btn:
                         await followers_btn.click(timeout=5000, force=True)
-                        await asyncio.sleep(2.5)
-                        for _ in range(min(3, max(0, (max_list_items - 30) // 10))):
-                            await page.mouse.wheel(0, 800)
-                            await asyncio.sleep(0.7)
+                        await asyncio.sleep(2.0)
+                        max_scrolls = max(6, (max_list_items // 10) + 3)
+                        no_new_count = 0
+                        prev_len = len(followers_list)
+                        for _ in range(max_scrolls):
+                            if len(followers_list) >= max_list_items:
+                                break
+                            await page.evaluate("""() => {
+                                const modal = document.querySelector('div[class*="DivUserListContainer"], div[role="dialog"] div[class*="ScrollContainer"], [data-e2e="user-list-item"]');
+                                if (modal) {
+                                    const scrollable = modal.closest('div[style*="overflow"], div[class*="Scroll"]') || modal.parentElement;
+                                    if (scrollable) {
+                                        scrollable.scrollTop += 1500;
+                                        scrollable.dispatchEvent(new Event('scroll', { bubbles: true }));
+                                    }
+                                }
+                            }""")
+                            await page.mouse.move(640, 450)
+                            await page.mouse.wheel(0, 1000)
+                            await asyncio.sleep(random.uniform(0.8, 1.3))
+                            if len(followers_list) == prev_len:
+                                no_new_count += 1
+                                if no_new_count >= 5:
+                                    break
+                            else:
+                                no_new_count = 0
+                                prev_len = len(followers_list)
                         await page.keyboard.press("Escape")
                         await asyncio.sleep(1)
                 except Exception as e:
@@ -260,10 +299,33 @@ class TikTokScraper:
                     following_btn = await page.query_selector('strong[data-e2e="following-count"]')
                     if following_btn:
                         await following_btn.click(timeout=5000, force=True)
-                        await asyncio.sleep(2.5)
-                        for _ in range(min(3, max(0, (max_list_items - 30) // 10))):
-                            await page.mouse.wheel(0, 800)
-                            await asyncio.sleep(0.7)
+                        await asyncio.sleep(2.0)
+                        max_scrolls = max(6, (max_list_items // 10) + 3)
+                        no_new_count = 0
+                        prev_len = len(following_list)
+                        for _ in range(max_scrolls):
+                            if len(following_list) >= max_list_items:
+                                break
+                            await page.evaluate("""() => {
+                                const modal = document.querySelector('div[class*="DivUserListContainer"], div[role="dialog"] div[class*="ScrollContainer"], [data-e2e="user-list-item"]');
+                                if (modal) {
+                                    const scrollable = modal.closest('div[style*="overflow"], div[class*="Scroll"]') || modal.parentElement;
+                                    if (scrollable) {
+                                        scrollable.scrollTop += 1500;
+                                        scrollable.dispatchEvent(new Event('scroll', { bubbles: true }));
+                                    }
+                                }
+                            }""")
+                            await page.mouse.move(640, 450)
+                            await page.mouse.wheel(0, 1000)
+                            await asyncio.sleep(random.uniform(0.8, 1.3))
+                            if len(following_list) == prev_len:
+                                no_new_count += 1
+                                if no_new_count >= 5:
+                                    break
+                            else:
+                                no_new_count = 0
+                                prev_len = len(following_list)
                         await page.keyboard.press("Escape")
                         await asyncio.sleep(0.5)
                 except Exception as e:
@@ -309,42 +371,41 @@ class TikTokScraper:
 
     async def _extract_video_urls(self, browser: Any, username: str, max_videos: int) -> List[str]:
         """
-        Busca los videos del autor en TikTok mediante búsqueda oficial y scroll vertical.
-        Luego ordena los enlaces de mayor a menor por su ID numérico (Snowflake: ID más alto = más reciente).
-        Los videos se ordenan descendentemente por su ID (Snowflake: ID mayor = más reciente).
+        Extrae los videos más recientes directamente desde el perfil oficial del usuario.
+        Ordena los enlaces descendentemente por ID numérico (Snowflake: ID más alto = más reciente).
         """
         raw_urls: List[str] = []
         clean_user = username.strip().lstrip("@").lower()
-        search_url = f"https://www.tiktok.com/search?q=%40{clean_user}"
+        profile_url = f"https://www.tiktok.com/@{clean_user}"
         
-        search_ctx = await browser.new_context(viewport={"width": 1280, "height": 800}, locale="es-ES")
+        ctx = await browser.new_context(viewport={"width": 1280, "height": 800}, locale="es-ES")
         if self.session_id:
-            await search_ctx.add_cookies([{"name": "sessionid", "value": self.session_id, "domain": ".tiktok.com", "path": "/"}])
-        page = await search_ctx.new_page()
+            await ctx.add_cookies([{"name": "sessionid", "value": self.session_id, "domain": ".tiktok.com", "path": "/"}])
+        page = await ctx.new_page()
 
         try:
-            await page.goto(search_url, wait_until="domcontentloaded", timeout=25000)
+            await page.goto(profile_url, wait_until="domcontentloaded", timeout=25000)
             await asyncio.sleep(2.5)
 
-            scroll_count = max(4, (max_videos + 2) // 3)
+            scroll_count = max(4, (max_videos // 3) + 3)
             for _ in range(scroll_count):
+                if len(raw_urls) >= max_videos:
+                    break
                 await page.mouse.wheel(0, 1500)
-                await asyncio.sleep(1.5)
-
-            links = await page.evaluate(
-                "() => Array.from(document.querySelectorAll('a')).map(a => a.href)"
-            )
-            for l in links:
-                base = l.split("?")[0]
-                es_video_del_usuario = f"/@{clean_user}/video/" in base.lower()
-                no_esta_repetido = base not in raw_urls
-                if es_video_del_usuario and no_esta_repetido:
-                    raw_urls.append(base)
+                await asyncio.sleep(1.2)
+                links = await page.evaluate(
+                    "() => Array.from(document.querySelectorAll('a')).map(a => a.href)"
+                )
+                for l in links:
+                    base = l.split("?")[0]
+                    es_video_del_usuario = f"/@{clean_user}/video/" in base.lower()
+                    if es_video_del_usuario and base not in raw_urls:
+                        raw_urls.append(base)
         except Exception as e:
-            logger.warning(f"Aviso en búsqueda de videos: {e}")
+            logger.warning(f"Aviso en extracción de videos del perfil: {e}")
         finally:
             try:
-                await search_ctx.close()
+                await ctx.close()
             except Exception:
                 pass
 
@@ -408,6 +469,8 @@ class TikTokScraper:
                                 "text": comment_text,
                                 "likes_count": comment_likes,
                                 "replies_count": comment_replies,
+                                "author_liked": bool(c.get("is_author_digged", False)),
+                                "is_pinned": bool(c.get("is_pinned", False)),
                                 "create_time": created_ts,
                                 "date": dt_str
                             })
@@ -422,6 +485,10 @@ class TikTokScraper:
             "description": "",
             "create_time": 0,
             "date": "",
+            "duration": 0,
+            "hashtags": [],
+            "cover_image_url": "",
+            "is_ad": False,
             "likes_count": 0,
             "comments_count": 0,
             "views_count": 0,
@@ -476,6 +543,18 @@ class TikTokScraper:
                 video_info["views_count"] = _to_int(stats.get("playCount"))
                 video_info["shares_count"] = _to_int(stats.get("shareCount"))
                 video_info["bookmarks_count"] = _to_int(stats.get("collectCount"))
+
+                video_struct = item.get("video", {})
+                video_info["duration"] = _to_int(video_struct.get("duration", 0))
+                video_info["cover_image_url"] = video_struct.get("cover", "") or video_struct.get("dynamicCover", "")
+                video_info["is_ad"] = bool(item.get("isAd", False))
+
+                challenges = item.get("challenges", []) or []
+                extracted_tags = [ch.get("title") for ch in challenges if isinstance(ch, dict) and ch.get("title")]
+                if not extracted_tags and video_info["description"]:
+                    extracted_tags = re.findall(r"#(\w+)", video_info["description"])
+                video_info["hashtags"] = extracted_tags
+
                 music_obj = item.get("music", {})
                 video_info["music_title"] = music_obj.get("title", "")
                 video_info["music_author"] = music_obj.get("authorName", "")
@@ -488,26 +567,83 @@ class TikTokScraper:
                 video_info["video_id"] = m.group(1)
 
         try:
+            # Eliminar posibles modales/overlays de login que tapen los botones
+            await page.evaluate("""() => {
+                const closeBtns = document.querySelectorAll('[class*="Modal-close"], [aria-label="Cerrar"], [aria-label="Close"], button[class*="close"]');
+                for (let b of closeBtns) try { b.click(); } catch(e){}
+                const overlays = document.querySelectorAll('.TUXModal-overlay, div[class*="Modal-overlay"]');
+                for (let o of overlays) o.style.pointerEvents = 'none';
+            }""")
+
             btn = await page.wait_for_selector(
                 '[data-e2e="comment-icon"], [data-e2e="comment-count"], button[class*="tux"]:has-text("Comentarios"), button[class*="tux"]:has-text("Comments")',
-                timeout=8000
+                timeout=5000
             )
             if btn:
                 logger.info("Botón de comentarios encontrado. Haciendo clic nativo...")
-                await btn.click()
-                for _ in range(12):
+                try:
+                    await btn.click()
+                except Exception:
+                    await btn.click(force=True, timeout=3000)
+                await asyncio.sleep(1.5)
+
+                max_comment_scrolls = max(6, (max_comments // 8) + 4)
+                no_new_comments = 0
+                prev_c_len = len(captured_comments)
+
+                for _ in range(max_comment_scrolls):
                     if len(captured_comments) >= max_comments:
                         break
-                    await asyncio.sleep(0.5)
+                    await page.evaluate("""() => {
+                        const containers = document.querySelectorAll('[data-e2e="comment-list"], div[class*="CommentList"], div[class*="DivCommentListContainer"], div[class*="CommentItemContainer"]');
+                        for (let c of containers) {
+                            c.scrollTop += 1800;
+                            c.dispatchEvent(new Event('scroll', { bubbles: true }));
+                        }
+                    }""")
+                    await page.mouse.move(950, 450)
+                    await page.mouse.wheel(0, 1000)
+                    await asyncio.sleep(random.uniform(0.9, 1.4))
+
+                    if len(captured_comments) == prev_c_len:
+                        no_new_comments += 1
+                        if no_new_comments >= 5:
+                            break
+                    else:
+                        no_new_comments = 0
+                        prev_c_len = len(captured_comments)
 
             if not captured_comments:
                 tab_btn = await page.query_selector('button[class*="tux"]:has-text("Comentarios"), button[class*="tux"]:has-text("Comments")')
                 if tab_btn:
-                    await tab_btn.click()
-                    for _ in range(8):
+                    try:
+                        await tab_btn.click()
+                    except Exception:
+                        await tab_btn.click(force=True, timeout=3000)
+                    await asyncio.sleep(1.5)
+                    max_comment_scrolls = max(6, (max_comments // 8) + 3)
+                    no_new_comments = 0
+                    prev_c_len = len(captured_comments)
+                    for _ in range(max_comment_scrolls):
                         if len(captured_comments) >= max_comments:
                             break
-                        await asyncio.sleep(0.5)
+                        await page.evaluate("""() => {
+                            const containers = document.querySelectorAll('[data-e2e="comment-list"], div[class*="CommentList"], div[class*="DivCommentListContainer"]');
+                            for (let c of containers) {
+                                c.scrollTop += 1800;
+                                c.dispatchEvent(new Event('scroll', { bubbles: true }));
+                            }
+                        }""")
+                        await page.mouse.move(950, 450)
+                        await page.mouse.wheel(0, 1000)
+                        await asyncio.sleep(random.uniform(0.9, 1.4))
+                        if len(captured_comments) == prev_c_len:
+                            no_new_comments += 1
+                            if no_new_comments >= 5:
+                                break
+                        else:
+                            no_new_comments = 0
+                            prev_c_len = len(captured_comments)
         except Exception as e:
             logger.warning(f"Aviso al hacer clic en comentarios: {e}")
 
