@@ -23,10 +23,6 @@ logger = logging.getLogger("DataEnricher")
 
 
 def load_env_key(key_name: str = "GEMINI_API_KEY") -> Optional[str]:
-    env_val = os.getenv(key_name)
-    if env_val:
-        return env_val.strip()
-
     candidates = []
     if "__file__" in globals():
         candidates.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
@@ -44,6 +40,10 @@ def load_env_key(key_name: str = "GEMINI_API_KEY") -> Optional[str]:
                                 return val
             except Exception:
                 pass
+
+    env_val = os.getenv(key_name)
+    if env_val:
+        return env_val.strip()
     return None
 
 
