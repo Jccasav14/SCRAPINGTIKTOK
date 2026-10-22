@@ -364,3 +364,86 @@ def print_enrichment_report(benford_res: Dict[str, Any], big_five_res: Dict[str,
     print("=" * 70 + "\n")
 
 
+def enrich_file(json_path: str, output_path: Optional[str] = None) -> Dict[str, Any]:
+    target_path = json_path
+    if not os.path.exists(target_path):
+        candidates = [
+            os.path.join("scraped_data", os.path.basename(json_path)),
+            os.path.join("scraped_data", f"tiktok_{json_path}.json"),
+            os.path.join("scraped_data", f"{json_path}.json"),
+            f"tiktok_{json_path}.json",
+            f"{json_path}.json",
+        ]
+        for cand in candidates:
+            if os.path.exists(cand):
+                target_path = cand
+                break
+
+    if not os.path.exists(target_path):
+        raise FileNotFoundError(f"No se encontró el archivo: {json_path} (ni en '.' ni en 'scraped_data/')")
+
+    with open(target_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    username = data.get("username", "usuario")
+    logger.info(f"Iniciando enriquecimiento de datos para: @{username}")
+
+    logger.info("Calculando distribución de Benford y prueba Chi-cuadrado χ²...")
+    benford_result = analyze_benford(data)
+
+    logger.info("Consultando perfil psicométrico Big Five con Gemini API...")
+    big_five_result = analyze_big_five_gemini(data)
+
+    enriched_data = dict(data)
+    enriched_data["data_enrichment"] = {
+        "benford_law_analysis": benford_result,
+        "big_five_ocean_profile": big_five_result
+    }
+
+    if output_path:
+        out_file = output_path
+        parent_dir = os.path.dirname(os.path.abspath(out_file))
+        if parent_dir:
+            os.makedirs(parent_dir, exist_ok=True)
+    else:
+        out_dir = "enriched_data"
+        os.makedirs(out_dir, exist_ok=True)
+        base_name = os.path.basename(target_path)
+        if base_name.endswith(".json"):
+            base_name = base_name[:-5]
+        if not base_name.endswith("_enriched"):
+            base_name = f"{base_name}_enriched"
+        out_file = os.path.join(out_dir, f"{base_name}.json")
+
+    with open(out_file, "w", encoding="utf-8") as f:
+        json.dump(enriched_data, f, indent=2, ensure_ascii=False)
+
+    print_enrichment_report(benford_result, big_five_result, username)
+    logger.info(f"Datos enriquecidos guardados con éxito en: {out_file}")
+    return enriched_data
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Enriquecedor de datos de TikTok: Ley de Benford (χ²) y Big Five OCEAN con Gemini."
+    )
+    parser.add_argument(
+        "json_file",
+        help="Ruta al archivo JSON exportado por el scraper (ejemplo: tiktok_mrbeast.json)",
+    )
+    parser.add_argument(
+        "--output",
+        "-o",
+        dest="output",
+        default=None,
+        help="Ruta opcional para el archivo JSON enriquecido de salida.",
+    )
+    parser.add_argument(
+        "--api-key",
+        dest="api_key",
+        default=None,
+        help="Clave opcional de Gemini API (si no se proporciona, se lee desde .env).",
+    )
+
+    args = parser.parse_args()
+    enrich_file(args.json_file, args.output)
