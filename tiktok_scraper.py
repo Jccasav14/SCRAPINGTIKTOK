@@ -582,7 +582,7 @@ class TikTokScraper:
             if btn:
                 logger.info("Botón de comentarios encontrado. Haciendo clic nativo...")
                 try:
-                    await btn.click()
+                    await page.evaluate("(el) => el.click()", btn)
                 except Exception:
                     await btn.click(force=True, timeout=3000)
                 await asyncio.sleep(1.5)
@@ -617,7 +617,7 @@ class TikTokScraper:
                 tab_btn = await page.query_selector('button[class*="tux"]:has-text("Comentarios"), button[class*="tux"]:has-text("Comments")')
                 if tab_btn:
                     try:
-                        await tab_btn.click()
+                        await page.evaluate("(el) => el.click()", tab_btn)
                     except Exception:
                         await tab_btn.click(force=True, timeout=3000)
                     await asyncio.sleep(1.5)
