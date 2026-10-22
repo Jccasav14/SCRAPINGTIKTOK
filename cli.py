@@ -47,6 +47,8 @@ def display_results(data: dict):
     print(f" • Total de Videos:    {data.get('video_count', 0):,}")
     if data.get("bio"):
         print(f" • Biografía:          {data.get('bio')}")
+    if data.get("bio_link"):
+        print(f" • Enlace Bio:         {data.get('bio_link')}")
     avatar = data.get('avatar_url', '')
     print(f" • Foto de Perfil HD:  {avatar[:80]}..." if len(avatar) > 80 else f" • Foto de Perfil HD:  {avatar}")
     print("-" * 65)
@@ -92,6 +94,11 @@ def display_results(data: dict):
                 print(f"     Descripción: \"{desc}\"")
             if v.get("date"):
                 print(f"     Fecha:       {v.get('date')}")
+            if v.get("duration"):
+                print(f"     ⏱️ Duración:   {v.get('duration')}s")
+            if v.get("hashtags"):
+                tags_str = " ".join(["#" + h.lstrip("#") for h in v.get("hashtags", [])[:6]])
+                print(f"     🏷️ Hashtags:   {tags_str}")
             print(f"     ❤️ Likes:       {v.get('likes_count', 0):,}")
             print(f"     💬 Comentarios: {v.get('comments_count', 0):,}")
             print(f"     👁️ Vistas:      {v.get('views_count', 0):,}")
@@ -107,7 +114,13 @@ def display_results(data: dict):
                     if len(c_text) > 80:
                         c_text = c_text[:77] + '...'
                     c_likes = f"❤️ {c.get('likes_count', 0):,}" if c.get('likes_count') else ""
-                    print(f"        {c_idx}. @{c_user}: \"{c_text}\" {c_likes}".strip())
+                    badges = []
+                    if c.get("author_liked"):
+                        badges.append("❤️ [Autor]")
+                    if c.get("is_pinned"):
+                        badges.append("📌 [Fijado]")
+                    badge_str = " ".join(badges)
+                    print(f"        {c_idx}. @{c_user}: \"{c_text}\" {c_likes} {badge_str}".strip())
                 if len(comments) > 5:
                     print(f"        ... y {len(comments) - 5} comentarios más guardados en el archivo JSON.")
             else:
@@ -117,7 +130,9 @@ def display_results(data: dict):
         print("\nℹ️ No se encontraron videos públicos para este usuario.")
 
     username = data.get("username", "resultado")
-    out_file = f"tiktok_{username}.json"
+    out_dir = "scraped_data"
+    os.makedirs(out_dir, exist_ok=True)
+    out_file = os.path.join(out_dir, f"tiktok_{username}.json")
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     print("\n" + "=" * 65)
