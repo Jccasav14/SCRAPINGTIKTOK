@@ -7,6 +7,9 @@ scratch/
 test_*.py
 *.log
 *.png
+*.docx
+generate_word_doc.py
+create_radar_pitch_doc.py
 
 tiktok_*.json
 !example_output.json
