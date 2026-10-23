@@ -179,7 +179,12 @@ def main():
     parser.add_argument(
         "--enrich",
         action="store_true",
-        help="Ejecuta automáticamente la Ley de Benford (χ²) y Psicometría Big Five (OCEAN) tras el scraping.",
+        help="Ejecuta automáticamente la Ley de Benford (χ²), Psicometría Big Five (OCEAN) y Radar de Crisis tras el scraping.",
+    )
+    parser.add_argument(
+        "--crisis",
+        action="store_true",
+        help="Ejecuta el Radar de Cancelación y Detección de Funa / Crisis tras el scraping.",
     )
 
     args = parser.parse_args()
@@ -219,8 +224,16 @@ def main():
             json_path = f"tiktok_{clean_user}.json"
         if os.path.exists(json_path):
             from data_enricher import enrich_file
-            print("\n🔮 Ejecutando enriquecimiento forense y psicométrico...")
+            print("\n🔮 Ejecutando enriquecimiento forense, psicométrico y radar de crisis...")
             enrich_file(json_path)
+    elif args.crisis and data.get("success"):
+        json_path = os.path.join("scraped_data", f"tiktok_{clean_user}.json")
+        if not os.path.exists(json_path):
+            json_path = f"tiktok_{clean_user}.json"
+        if os.path.exists(json_path):
+            from crisis_radar import scan_crisis_file
+            print("\n🚨 Ejecutando Radar de Crisis Reputacional y riesgo de funa...")
+            scan_crisis_file(json_path)
 
 
 if __name__ == "__main__":

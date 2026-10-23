@@ -437,10 +437,18 @@ def enrich_file(json_path: str, output_path: Optional[str] = None) -> Dict[str, 
     logger.info("Consultando perfil psicométrico Big Five con Gemini API...")
     big_five_result = analyze_big_five_gemini(data)
 
+    logger.info("Escaneando Radar de Crisis Reputacional y riesgo de funa...")
+    try:
+        from crisis_radar import CrisisRadar, print_crisis_report
+        crisis_result = CrisisRadar().analyze_profile(data)
+    except Exception as e:
+        crisis_result = {"status": "error", "error": str(e)}
+
     enriched_data = dict(data)
     enriched_data["data_enrichment"] = {
         "benford_law_analysis": benford_result,
-        "big_five_ocean_profile": big_five_result
+        "big_five_ocean_profile": big_five_result,
+        "crisis_radar": crisis_result
     }
 
     if output_path:
@@ -462,6 +470,8 @@ def enrich_file(json_path: str, output_path: Optional[str] = None) -> Dict[str, 
         json.dump(enriched_data, f, indent=2, ensure_ascii=False)
 
     print_enrichment_report(benford_result, big_five_result, username)
+    if crisis_result.get("status") == "success":
+        print_crisis_report(crisis_result, username)
     logger.info(f"Datos enriquecidos guardados con éxito en: {out_file}")
     return enriched_data
 

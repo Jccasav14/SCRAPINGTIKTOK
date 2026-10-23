@@ -155,3 +155,89 @@ def generate_big_five_svg(big_five_res: Dict[str, Any], username: str) -> str:
   <text x="50" y="486" fill="#334155" font-size="12.5">• <tspan fill="#64748b">Emoción Primaria:</tspan> <tspan font-weight="bold" fill="#0284c7">{primary_emotion}</tspan></text>
   <text x="50" y="508" fill="#334155" font-size="12.5">• <tspan fill="#64748b">Clima Emocional:</tspan> {sentiment}</text>
 </svg>"""
+
+
+def generate_crisis_radar_svg(crisis_res: Dict[str, Any], username: str) -> str:
+    score = int(crisis_res.get("crisis_score", 15))
+    level = crisis_res.get("alert_level", "SEGURO")
+    badge_color = crisis_res.get("badge_color", "#16a34a")
+    summary = crisis_res.get("status_summary", "Ambiente comunitario estable y sin fricciones detectadas.")
+    if len(summary) > 230:
+        summary = summary[:227] + "..."
+
+    rb = crisis_res.get("reaction_breakdown", {})
+    apoyo = int(rb.get("apoyo_admiracion", 70))
+    critica = int(rb.get("critica_hostilidad", 5))
+    burla = int(rb.get("sarcasmo_burla", 10))
+    neutro = int(rb.get("indiferencia_neutro", 15))
+
+    playbook = crisis_res.get("containment_playbook", {})
+    action = playbook.get("recommended_action", "Monitoreo Preventivo")
+    del_vid = "SÍ (Recomendado)" if playbook.get("should_delete_video") else "No requerido"
+    dis_comm = "SÍ (Preventivo)" if playbook.get("should_disable_comments") else "Abiertos"
+    stmt = "SÍ (Comunicado oficial)" if playbook.get("should_issue_statement") else "No escalar"
+
+    epicenter = crisis_res.get("epicenter_video", {})
+    has_epi = epicenter.get("has_epicenter", False)
+    epi_text = f"Video #{epicenter.get('video_index', 1)}: {epicenter.get('trigger_reason', 'Tensión focalizada')}" if has_epi else "Ningún video detonante de hostilidad detectado."
+    if len(epi_text) > 110:
+        epi_text = epi_text[:107] + "..."
+
+    svg_width = 860
+    svg_height = 540
+
+    # Ancho del termómetro (base 796px)
+    meter_w = max(16, int((score / 100) * 796))
+
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {svg_width} {svg_height}" width="100%" height="100%" style="background:#ffffff; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; border-radius:8px; border:1px solid #e2e8f0;">
+  <!-- Encabezado -->
+  <text x="32" y="38" fill="#0f172a" font-size="19" font-weight="bold">🚨 Radar de Cancelación & Gestión de Crisis</text>
+  <text x="32" y="62" fill="#64748b" font-size="13">Perfil auditado: <tspan fill="#0284c7" font-weight="bold">@{username}</tspan> | Telemetría en tiempo real: <tspan fill="#0f172a" font-weight="600">{crisis_res.get('scanned_comments_count', 0)} comentarios</tspan> en los últimos videos</text>
+
+  <!-- Termómetro Principal de Riesgo (0-100) -->
+  <rect x="32" y="78" width="796" height="42" fill="#f8fafc" stroke="#e2e8f0" rx="8"/>
+  <rect x="32" y="78" width="{meter_w}" height="42" fill="{badge_color}" rx="8"/>
+  
+  <text x="48" y="105" fill="#ffffff" font-size="14" font-weight="bold" style="text-shadow: 0 1px 2px rgba(0,0,0,0.4);">ÍNDICE DE RIESGO DE CRISIS: {score}/100</text>
+  <rect x="670" y="85" width="148" height="28" fill="#ffffff" rx="6"/>
+  <text x="744" y="104" fill="{badge_color}" font-size="12" font-weight="bold" text-anchor="middle">{level}</text>
+
+  <!-- Diagnóstico Reputacional -->
+  <rect x="32" y="132" width="796" height="68" fill="#f8fafc" stroke="#e2e8f0" rx="8"/>
+  <text x="48" y="154" fill="#0f172a" font-size="12.5" font-weight="bold">📋 Diagnóstico de Temperatura Comunitaria:</text>
+  <text x="48" y="176" fill="#475569" font-size="11.5">{summary}</text>
+
+  <!-- 4 Barras de Reacción Comunitaria (100%) -->
+  <text x="32" y="224" fill="#0f172a" font-size="13" font-weight="bold">🌡️ Desglose de Reacción en Comentarios (Total = 100%):</text>
+
+  <!-- Apoyo -->
+  <text x="32" y="250" fill="#334155" font-size="12">🤝 Apoyo y Admiración: <tspan font-weight="bold" fill="#16a34a">{apoyo}%</tspan></text>
+  <rect x="230" y="238" width="598" height="15" fill="#f1f5f9" rx="7"/>
+  <rect x="230" y="238" width="{int((apoyo/100)*598)}" height="15" fill="#16a34a" rx="7"/>
+
+  <!-- Crítica / Hostilidad -->
+  <text x="32" y="280" fill="#334155" font-size="12">😡 Crítica y Hostilidad: <tspan font-weight="bold" fill="#dc2626">{critica}%</tspan></text>
+  <rect x="230" y="268" width="598" height="15" fill="#f1f5f9" rx="7"/>
+  <rect x="230" y="268" width="{int((critica/100)*598)}" height="15" fill="#dc2626" rx="7"/>
+
+  <!-- Sarcasmo / Burla -->
+  <text x="32" y="310" fill="#334155" font-size="12">🎭 Sarcasmo y Memes: <tspan font-weight="bold" fill="#d97706">{burla}%</tspan></text>
+  <rect x="230" y="298" width="598" height="15" fill="#f1f5f9" rx="7"/>
+  <rect x="230" y="298" width="{int((burla/100)*598)}" height="15" fill="#d97706" rx="7"/>
+
+  <!-- Neutro -->
+  <text x="32" y="340" fill="#334155" font-size="12">😐 Neutro / Consultas: <tspan font-weight="bold" fill="#64748b">{neutro}%</tspan></text>
+  <rect x="230" y="328" width="598" height="15" fill="#f1f5f9" rx="7"/>
+  <rect x="230" y="328" width="{int((neutro/100)*598)}" height="15" fill="#64748b" rx="7"/>
+
+  <!-- Epicentro de la Crisis -->
+  <rect x="32" y="360" width="796" height="42" fill="#fff7ed" stroke="#fed7aa" rx="6"/>
+  <text x="48" y="386" fill="#c2410c" font-size="12" font-weight="bold">🎯 Epicentro de Fricción: <tspan font-weight="normal" fill="#7c2d12">{epi_text}</tspan></text>
+
+  <!-- Protocolo de Contención de Daños (Playbook) -->
+  <rect x="32" y="414" width="796" height="106" fill="#f8fafc" stroke="#e2e8f0" rx="8"/>
+  <text x="48" y="438" fill="#0f172a" font-size="13" font-weight="bold">🛡️ Playbook de Contención y Relaciones Públicas:</text>
+  <text x="48" y="462" fill="#334155" font-size="12">• <tspan fill="#64748b">Acción Estratégica:</tspan> <tspan font-weight="bold" fill="#0284c7">{action}</tspan></text>
+  <text x="48" y="484" fill="#334155" font-size="12">• <tspan fill="#64748b">¿Eliminar Video?:</tspan> <tspan font-weight="bold">{del_vid}</tspan> | <tspan fill="#64748b">¿Cerrar Comentarios?:</tspan> <tspan font-weight="bold">{dis_comm}</tspan> | <tspan fill="#64748b">¿Emitir Comunicado?:</tspan> <tspan font-weight="bold">{stmt}</tspan></text>
+  <text x="48" y="504" fill="#334155" font-size="11.5">• <tspan fill="#64748b">Amenaza a Patrocinadores / Boicot:</tspan> {'⚠️ DETECTADA (Riesgo comercial)' if crisis_res.get('boycott_threat') else '✅ Ninguna detectada'}</text>
+</svg>"""

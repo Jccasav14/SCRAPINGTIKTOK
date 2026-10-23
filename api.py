@@ -10,7 +10,8 @@ from pydantic import BaseModel
 
 from tiktok_scraper import TikTokScraper
 from data_enricher import analyze_benford, analyze_big_five_gemini
-from chart_generator import generate_benford_svg, generate_big_five_svg
+from chart_generator import generate_benford_svg, generate_big_five_svg, generate_crisis_radar_svg
+from crisis_radar import CrisisRadar
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
@@ -24,12 +25,14 @@ API REST con interfaz Swagger para extracción y enriquecimiento de datos de Tik
 * 📥 **Scraper**: Perfil, seguidores/seguidos, últimos videos con todas sus métricas y comentarios reales.
 * 📊 **Análisis Forense (Ley de Benford & χ²)**: Detección de patrones orgánicos vs granjas de bots.
 * 🧠 **Perfil Psicométrico Big Five (OCEAN)**: Arquetipo y emociones evaluados con Google Gemini AI.
+* 🚨 **Radar de Cancelación y Gestión de Crisis**: Detección temprana de funas, boicots y playbook de relaciones públicas.
 * 🎨 **Gráficos Visuales**: Renderizado gráfico de barras y emociones integrado directamente en Swagger.
 * 📂 **Gestión de Archivos**: Almacenamiento organizado en `scraped_data/` y `enriched_data/`.
 """,
-    version="2.6.0",
+    version="2.7.0",
     openapi_tags=[
-        {"name": "Visual Charts", "description": "Gráficos visuales de Benford y Emociones integrados en Swagger"},
+        {"name": "Visual Charts", "description": "Gráficos visuales de Benford, Emociones y Radar de Crisis en Swagger"},
+        {"name": "Crisis Radar", "description": "🚨 Detección Temprana de Funa, Índice de Riesgo de Cancelación y Playbook de PR"},
         {"name": "Enrichment", "description": "Modelos avanzados: Ley de Benford (χ²) y Psicometría Big Five (OCEAN)"},
         {"name": "Scraper", "description": "Extracción de datos en vivo desde TikTok"},
         {"name": "Files", "description": "Consulta y descarga de JSONs guardados en el servidor"},
@@ -245,9 +248,54 @@ async def get_big_five_chart(username: str):
     return Response(content=svg_content, media_type="image/svg+xml")
 
 
+@app.get(
+    "/api/tiktok/{username}/chart/crisis-radar",
+    tags=["Visual Charts"],
+    summary="🚨 Gráfico de Radar de Cancelación y Gestión de Crisis (SVG)",
+    response_class=Response,
+    responses={
+        200: {
+            "content": {"image/svg+xml": {}},
+            "description": "Renderiza el termómetro de riesgo de funa, cuadrantes de reacción y playbook de PR."
+        }
+    }
+)
+async def get_crisis_radar_chart(username: str):
+    clean_user = username.lstrip("@").strip()
+    data = _get_or_scrape_data(clean_user)
+    if not data:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No hay datos guardados para @{clean_user}. Ejecútalo primero en el scraper o /enrich."
+        )
+
+    crisis_res = data.get("data_enrichment", {}).get("crisis_radar")
+    if not crisis_res or crisis_res.get("status") != "success":
+        crisis_res = CrisisRadar().analyze_profile(data)
+
+    svg_content = generate_crisis_radar_svg(crisis_res, clean_user)
+    return Response(content=svg_content, media_type="image/svg+xml")
+
+
 # =============================================================================
-# ENRIQUECIMIENTO DE DATOS
+# ENRIQUECIMIENTO DE DATOS & RADAR DE CRISIS
 # =============================================================================
+
+@app.get("/api/tiktok/{username}/crisis-radar", tags=["Crisis Radar"])
+async def get_crisis_radar(username: str):
+    clean_user = username.lstrip("@").strip()
+    data = _get_or_scrape_data(clean_user)
+    if not data:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No hay datos guardados para @{clean_user}. Primero ejecútalo en /api/tiktok/{clean_user} o /enrich."
+        )
+
+    crisis_res = data.get("data_enrichment", {}).get("crisis_radar")
+    if not crisis_res or crisis_res.get("status") != "success":
+        crisis_res = CrisisRadar().analyze_profile(data)
+    return crisis_res
+
 
 @app.post("/api/tiktok/{username}/enrich", tags=["Enrichment"])
 async def enrich_tiktok_user(
@@ -268,11 +316,13 @@ async def enrich_tiktok_user(
 
     benford_res = analyze_benford(data)
     big_five_res = analyze_big_five_gemini(data)
+    crisis_res = CrisisRadar().analyze_profile(data)
 
     enriched = dict(data)
     enriched["data_enrichment"] = {
         "benford_law_analysis": benford_res,
-        "big_five_ocean_profile": big_five_res
+        "big_five_ocean_profile": big_five_res,
+        "crisis_radar": crisis_res
     }
 
     os.makedirs("enriched_data", exist_ok=True)
@@ -286,6 +336,7 @@ async def enrich_tiktok_user(
         "saved_to": out_file,
         "benford_law": benford_res,
         "big_five_ocean": big_five_res,
+        "crisis_radar": crisis_res,
         "full_data": enriched
     }
 
