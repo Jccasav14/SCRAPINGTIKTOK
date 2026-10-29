@@ -10,6 +10,8 @@ test_*.py
 *.docx
 generate_word_doc.py
 create_radar_pitch_doc.py
+generate_figma_svg.py
+Figma_*.svg
 
 tiktok_*.json
 !example_output.json
