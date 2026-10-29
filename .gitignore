@@ -10,12 +10,13 @@ test_*.py
 *.docx
 generate_word_doc.py
 create_radar_pitch_doc.py
-
+.agents/
 
 tiktok_*.json
 !example_output.json
 scraped_data/
 enriched_data/
+latest_figma_telemetry.json
 
 __pycache__/
 *.py[cod]

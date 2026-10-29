@@ -234,6 +234,14 @@ def main():
             from crisis_radar import scan_crisis_file
             print("\n🚨 Ejecutando Radar de Crisis Reputacional y riesgo de funa...")
             scan_crisis_file(json_path)
+    elif data.get("success"):
+        try:
+            from figma_sync import send_to_figma
+            f_res = send_to_figma(data)
+            if f_res.get("status") == "success":
+                print(f"\n📡 [FigmaSync] Perfil de @{clean_user} sincronizado en vivo con Figma (Pin ID: {f_res.get('comment_id')} en Dashboard)")
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

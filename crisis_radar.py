@@ -384,6 +384,20 @@ def scan_crisis_file(target: str) -> Dict[str, Any]:
     crisis_res = radar.analyze_profile(data)
 
     print_crisis_report(crisis_res, clean_user)
+
+    # Sincronización automática directa con Figma en ejecución
+    try:
+        from figma_sync import send_to_figma
+        payload = dict(crisis_res)
+        payload["username"] = clean_user
+        figma_res = send_to_figma(payload)
+        if figma_res.get("status") == "success":
+            logger.info(f"📡 [FigmaSync] Radar de Crisis enviado en vivo a Figma (Pin ID: {figma_res.get('comment_id')} en Dashboard)")
+        elif figma_res.get("status") != "missing_credentials":
+            logger.warning(f"⚠️ [FigmaSync] Aviso Figma: {figma_res.get('message') or figma_res.get('error')}")
+    except Exception as figma_err:
+        logger.debug(f"[FigmaSync] Error omitido: {figma_err}")
+
     return crisis_res
 
 
