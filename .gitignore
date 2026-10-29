@@ -11,6 +11,7 @@ test_*.py
 generate_word_doc.py
 create_radar_pitch_doc.py
 generate_figma_svg.py
+generate_figma_mobile_svg.py
 Figma_*.svg
 
 tiktok_*.json
